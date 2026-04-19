@@ -1,0 +1,289 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Lookup Tables (seeded — extend by adding rows, not migrations) ────────────
+
+model DripFrequency {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // DAILY | WEEKLY | BIWEEKLY | MONTHLY
+  label String
+
+  vaults Vault[]
+
+  @@map("drip_frequencies")
+}
+
+model VaultStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // ACTIVE | COMPLETED | BROKEN | PAUSED
+  label String
+
+  vaults Vault[]
+
+  @@map("vault_statuses")
+}
+
+model DisbursementStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // PENDING | PROCESSING | COMPLETED | FAILED
+  label String
+
+  disbursements Disbursement[]
+
+  @@map("disbursement_statuses")
+}
+
+model AccountType {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // USER_WALLET | VAULT | FLOAT_POOL | FEE_REVENUE | PENALTY_REVENUE
+  label String
+
+  ledgerEntries LedgerEntry[]
+
+  @@map("account_types")
+}
+
+model EntryDirection {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // DEBIT | CREDIT
+  label String
+
+  ledgerEntries LedgerEntry[]
+
+  @@map("entry_directions")
+}
+
+model KycStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // NONE | TIER_1_PENDING | TIER_1_VERIFIED | TIER_2_PENDING | TIER_2_VERIFIED | FAILED
+  label String
+
+  users User[]
+
+  @@map("kyc_statuses")
+}
+
+model UserStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // ACTIVE | INACTIVE | BLACKLISTED | SUSPENDED
+  label String
+
+  users User[]
+
+  @@map("user_statuses")
+}
+
+model TokenType {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // OTP | REFRESH | PIN_RESET
+  label String
+
+  tokens Token[]
+
+  @@map("token_types")
+}
+
+// ─── Core Models ──────────────────────────────────────────────────────────────
+
+model User {
+  id           String  @id @default(uuid())
+  phoneNumber  String  @unique
+  email        String? @unique
+  firstName    String?
+  lastName     String?
+  pinHash      String?
+  bvnEncrypted String?
+  bvnVerified  Boolean @default(false)
+  fcmToken     String?
+
+  kycStatusId Int
+  kycStatus   KycStatus @relation(fields: [kycStatusId], references: [id])
+
+  statusId Int
+  status   UserStatus @relation(fields: [statusId], references: [id])
+
+  vaults       Vault[]
+  wallet       Wallet?
+  tokens       Token[]
+  activityLogs UserActivityLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([phoneNumber])
+  @@index([statusId])
+
+  @@map("users")
+}
+
+model Token {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  typeId Int
+  type   TokenType @relation(fields: [typeId], references: [id])
+
+  token     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, typeId])
+  @@index([token])
+
+  @@map("tokens")
+}
+
+model Wallet {
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  paystackCustomerCode    String?
+  paystackVirtualAcctNo   String?
+  paystackVirtualBankName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("wallets")
+}
+
+model Vault {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  name              String?
+  lockedAmountKobo  BigInt
+  trancheAmountKobo BigInt
+  totalTranches     Int
+  tranchesSent      Int      @default(0)
+  startsAt          DateTime
+  endsAt            DateTime
+  brokenAt          DateTime?
+  penaltyKobo       BigInt?
+
+  frequencyId Int
+  frequency   DripFrequency @relation(fields: [frequencyId], references: [id])
+
+  statusId Int
+  status   VaultStatus @relation(fields: [statusId], references: [id])
+
+  disbursements Disbursement[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, statusId])
+  @@index([statusId, startsAt])
+
+  @@map("vaults")
+}
+
+model Disbursement {
+  id         String @id @default(uuid())
+  vaultId    String
+  vault      Vault  @relation(fields: [vaultId], references: [id])
+  userId     String
+  dripNumber Int
+  amountKobo BigInt
+  failReason  String?
+  attemptedAt DateTime?
+  completedAt DateTime?
+
+  statusId Int
+  status   DisbursementStatus @relation(fields: [statusId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([vaultId, dripNumber])
+  @@index([vaultId])
+  @@index([statusId])
+
+  @@map("disbursements")
+}
+
+model LedgerEntry {
+  id            String @id @default(uuid())
+  transactionId String
+  accountId     String
+  amountKobo    BigInt
+  description   String
+  metadata      Json?
+
+  accountTypeId Int
+  accountType   AccountType @relation(fields: [accountTypeId], references: [id])
+
+  directionId Int
+  direction   EntryDirection @relation(fields: [directionId], references: [id])
+
+  createdAt DateTime @default(now())
+
+  @@index([accountTypeId, accountId])
+  @@index([transactionId])
+
+  @@map("ledger_entries")
+}
+
+model WebhookEvent {
+  id          String    @id @default(uuid())
+  provider    String
+  eventId     String    @unique
+  eventType   String
+  payload     Json
+  processed   Boolean   @default(false)
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([provider, eventId])
+
+  @@map("webhook_events")
+}
+
+model UserActivityLog {
+  id          String  @id @default(uuid())
+  userId      String
+  user        User    @relation(fields: [userId], references: [id])
+  action      String
+  description String?
+  metadata    Json?
+  ipAddress   String?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+
+  @@map("user_activity_logs")
+}
+
+model AuditLog {
+  id         String  @id @default(uuid())
+  actorId    String?
+  actorType  String
+  action     String
+  resource   String
+  resourceId String?
+  metadata   Json?
+  ipAddress  String?
+
+  createdAt DateTime @default(now())
+
+  @@index([actorId])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+
+  @@map("audit_logs")
+}
