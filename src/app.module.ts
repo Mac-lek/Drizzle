@@ -4,16 +4,16 @@ import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
-import { KycModule } from './kyc/kyc.module';
-import { WalletModule } from './wallet/wallet.module';
-import { VaultModule } from './vault/vault.module';
-import { DisbursementModule } from './disbursement/disbursement.module';
-import { LedgerModule } from './ledger/ledger.module';
-import { PaymentsModule } from './payments/payments.module';
 import { NotificationsModule } from './notifications/notifications.module';
-import { ReconciliationModule } from './reconciliation/reconciliation.module';
-import { AdminModule } from './admin/admin.module';
-import { HealthModule } from './health/health.module';
+// import { KycModule } from './kyc/kyc.module';
+// import { WalletModule } from './wallet/wallet.module';
+// import { VaultModule } from './vault/vault.module';
+// import { DisbursementModule } from './disbursement/disbursement.module';
+// import { LedgerModule } from './ledger/ledger.module';
+// import { PaymentsModule } from './payments/payments.module';
+// import { ReconciliationModule } from './reconciliation/reconciliation.module';
+// import { AdminModule } from './admin/admin.module';
+// import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
@@ -30,16 +30,16 @@ import { HealthModule } from './health/health.module';
     PrismaModule,
     AuthModule,
     UsersModule,
-    KycModule,
-    WalletModule,
-    VaultModule,
-    DisbursementModule,
-    LedgerModule,
-    PaymentsModule,
     NotificationsModule,
-    ReconciliationModule,
-    AdminModule,
-    HealthModule,
+    // KycModule,
+    // WalletModule,
+    // VaultModule,
+    // DisbursementModule,
+    // LedgerModule,
+    // PaymentsModule,
+    // ReconciliationModule,
+    // AdminModule,
+    // HealthModule,
   ],
 })
 export class AppModule {}

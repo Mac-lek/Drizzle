@@ -29,6 +29,7 @@
     "db:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
+    "@nestjs-modules/ioredis": "^2.2.1",
     "@nestjs/axios": "^3.0.0",
     "@nestjs/bullmq": "^10.0.0",
     "@nestjs/common": "^10.0.0",
