@@ -3,9 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  provider = "postgresql"
 }
 
 // ─── Lookup Tables (seeded — extend by adding rows, not migrations) ────────────
@@ -94,7 +92,7 @@ model TokenType {
 
 model User {
   id           String  @id @default(uuid())
-  phoneNumber  String  @unique
+  phoneNumber  String? @unique
   email        String? @unique
   firstName    String?
   lastName     String?

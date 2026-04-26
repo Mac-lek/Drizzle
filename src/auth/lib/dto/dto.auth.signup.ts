@@ -1,14 +1,15 @@
-import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEmail, IsOptional, IsString, Matches } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsEmail, IsString, Matches, ValidateIf } from 'class-validator';
 
 export class SignupDto {
-  @ApiProperty({ example: '08012345678', description: 'Nigerian phone number' })
+  @ApiPropertyOptional({ example: '08012345678', description: 'Nigerian phone number' })
+  @ValidateIf((o) => !!o.phone || !o.email)
   @IsString()
   @Matches(/^(\+?234|0)[789]\d{9}$/, { message: 'Invalid Nigerian phone number' })
-  phone: string;
+  phone?: string;
 
   @ApiPropertyOptional({ example: 'user@example.com' })
-  @IsOptional()
+  @ValidateIf((o) => !!o.email || !o.phone)
   @IsEmail()
   email?: string;
 }

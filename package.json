@@ -41,7 +41,8 @@
     "@nestjs/swagger": "^7.0.0",
     "@nestjs/terminus": "^10.0.0",
     "@nestjs/throttler": "^5.0.0",
-    "@prisma/client": "^5.0.0",
+    "@prisma/adapter-pg": "^7.7.0",
+    "@prisma/client": "^7.7.0",
     "@sentry/nestjs": "^8.0.0",
     "@sentry/node": "^8.0.0",
     "argon2": "^0.31.0",
@@ -53,8 +54,10 @@
     "ioredis": "^5.3.0",
     "joi": "^17.11.0",
     "nestjs-pino": "^4.0.0",
+    "nodemailer": "^8.0.5",
     "passport": "^0.7.0",
     "passport-jwt": "^4.0.1",
+    "pg": "^8.20.0",
     "pino-http": "^9.0.0",
     "pino-pretty": "^10.0.0",
     "reflect-metadata": "^0.1.13",
@@ -69,7 +72,9 @@
     "@types/express": "^4.17.17",
     "@types/jest": "^29.5.2",
     "@types/node": "^20.3.1",
+    "@types/nodemailer": "^8.0.0",
     "@types/passport-jwt": "^3.0.0",
+    "@types/pg": "^8.20.0",
     "@types/supertest": "^2.0.12",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
     "@typescript-eslint/parser": "^6.0.0",
@@ -80,7 +85,7 @@
     "jest": "^29.5.0",
     "lint-staged": "^15.0.0",
     "prettier": "^3.0.0",
-    "prisma": "^5.0.0",
+    "prisma": "^7.7.0",
     "supertest": "^6.3.3",
     "ts-jest": "^29.1.0",
     "ts-node": "^10.9.1",
@@ -105,19 +110,45 @@
       "^.+\\.(t|j)s$": "ts-jest"
     },
     "moduleNameMapper": {
-      "@common/(.*)": ["<rootDir>/common/$1"],
-      "@config/(.*)": ["<rootDir>/config/$1"],
-      "@prisma-client/(.*)": ["<rootDir>/prisma/$1"],
-      "@auth/(.*)": ["<rootDir>/auth/$1"],
-      "@users/(.*)": ["<rootDir>/users/$1"],
-      "@kyc/(.*)": ["<rootDir>/kyc/$1"],
-      "@wallet/(.*)": ["<rootDir>/wallet/$1"],
-      "@vault/(.*)": ["<rootDir>/vault/$1"],
-      "@disbursement/(.*)": ["<rootDir>/disbursement/$1"],
-      "@ledger/(.*)": ["<rootDir>/ledger/$1"],
-      "@payments/(.*)": ["<rootDir>/payments/$1"],
-      "@notifications/(.*)": ["<rootDir>/notifications/$1"],
-      "@admin/(.*)": ["<rootDir>/admin/$1"]
+      "@common/(.*)": [
+        "<rootDir>/common/$1"
+      ],
+      "@config/(.*)": [
+        "<rootDir>/config/$1"
+      ],
+      "@prisma-client/(.*)": [
+        "<rootDir>/prisma/$1"
+      ],
+      "@auth/(.*)": [
+        "<rootDir>/auth/$1"
+      ],
+      "@users/(.*)": [
+        "<rootDir>/users/$1"
+      ],
+      "@kyc/(.*)": [
+        "<rootDir>/kyc/$1"
+      ],
+      "@wallet/(.*)": [
+        "<rootDir>/wallet/$1"
+      ],
+      "@vault/(.*)": [
+        "<rootDir>/vault/$1"
+      ],
+      "@disbursement/(.*)": [
+        "<rootDir>/disbursement/$1"
+      ],
+      "@ledger/(.*)": [
+        "<rootDir>/ledger/$1"
+      ],
+      "@payments/(.*)": [
+        "<rootDir>/payments/$1"
+      ],
+      "@notifications/(.*)": [
+        "<rootDir>/notifications/$1"
+      ],
+      "@admin/(.*)": [
+        "<rootDir>/admin/$1"
+      ]
     },
     "collectCoverageFrom": [
       "**/*.(t|j)s"

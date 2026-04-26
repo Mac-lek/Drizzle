@@ -21,11 +21,15 @@ export class UsersService {
   }
 
   async findOrCreate(
-    rawPhone: string,
+    rawPhone?: string,
     email?: string,
   ): Promise<{ user: User; created: boolean }> {
-    const phoneNumber = normalizeNigerianPhone(rawPhone);
-    const existing = await this.findByPhone(phoneNumber);
+    const phoneNumber = rawPhone ? normalizeNigerianPhone(rawPhone) : undefined;
+
+    const existing = phoneNumber
+      ? await this.findByPhone(phoneNumber)
+      : await this.findByEmail(email!);
+
     if (existing) return { user: existing, created: false };
 
     const [kycStatus, userStatus] = await Promise.all([
@@ -35,7 +39,7 @@ export class UsersService {
 
     const user = await this.prisma.user.create({
       data: {
-        phoneNumber,
+        ...(phoneNumber && { phoneNumber }),
         ...(email && { email }),
         kycStatusId: kycStatus.id,
         statusId: userStatus.id,

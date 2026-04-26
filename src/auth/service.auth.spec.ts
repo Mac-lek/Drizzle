@@ -53,7 +53,10 @@ describe('AuthService', () => {
         },
         {
           provide: NotificationsService,
-          useValue: { sendOtp: jest.fn().mockResolvedValue(undefined) },
+          useValue: {
+            sendPhoneOtp: jest.fn().mockResolvedValue(undefined),
+            sendEmailOtp: jest.fn().mockResolvedValue(undefined),
+          },
         },
         {
           provide: PrismaService,
@@ -100,7 +103,7 @@ describe('AuthService', () => {
       const result = await service.signup({ phone: '08012345678' });
 
       expect(usersService.findOrCreate).toHaveBeenCalledWith('+2348012345678', undefined);
-      expect(notificationsService.sendOtp).toHaveBeenCalled();
+      expect(notificationsService.sendPhoneOtp).toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
 
@@ -112,7 +115,7 @@ describe('AuthService', () => {
 
       const result = await service.signup({ phone: '08012345678' });
 
-      expect(notificationsService.sendOtp).not.toHaveBeenCalled();
+      expect(notificationsService.sendPhoneOtp).not.toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
 
@@ -138,7 +141,7 @@ describe('AuthService', () => {
       });
       (prisma.token.update as jest.Mock).mockResolvedValue({});
 
-      const result = await service.verifyOtp({ phone: '08012345678', otp: '123456' });
+      const result = await service.verifyOtp({ identifier: '08012345678', otp: '123456' });
 
       expect(prisma.token.update).toHaveBeenCalledWith(
         expect.objectContaining({ where: { id: 'token-1' }, data: { used: true } }),
@@ -149,7 +152,7 @@ describe('AuthService', () => {
     it('throws UnauthorizedException when phone is not found', async () => {
       (usersService.findByPhone as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.verifyOtp({ phone: '08012345678', otp: '123456' })).rejects.toThrow(
+      await expect(service.verifyOtp({ identifier: '08012345678', otp: '123456' })).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -161,7 +164,7 @@ describe('AuthService', () => {
         token: '999999',
       });
 
-      await expect(service.verifyOtp({ phone: '08012345678', otp: '123456' })).rejects.toThrow(
+      await expect(service.verifyOtp({ identifier: '08012345678', otp: '123456' })).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -170,7 +173,7 @@ describe('AuthService', () => {
       (usersService.findByPhone as jest.Mock).mockResolvedValue(mockUser);
       (prisma.token.findFirst as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.verifyOtp({ phone: '08012345678', otp: '123456' })).rejects.toThrow(
+      await expect(service.verifyOtp({ identifier: '08012345678', otp: '123456' })).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -326,7 +329,7 @@ describe('AuthService', () => {
       const result = await service.resendOtp({ phone: '08012345678' });
 
       expect(prisma.token.updateMany).toHaveBeenCalled();
-      expect(notificationsService.sendOtp).toHaveBeenCalled();
+      expect(notificationsService.sendPhoneOtp).toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
 
@@ -335,7 +338,7 @@ describe('AuthService', () => {
 
       const result = await service.resendOtp({ phone: '08099999999' });
 
-      expect(notificationsService.sendOtp).not.toHaveBeenCalled();
+      expect(notificationsService.sendPhoneOtp).not.toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
 
@@ -344,7 +347,7 @@ describe('AuthService', () => {
 
       const result = await service.resendOtp({ phone: '08012345678' });
 
-      expect(notificationsService.sendOtp).not.toHaveBeenCalled();
+      expect(notificationsService.sendPhoneOtp).not.toHaveBeenCalled();
       expect(result.message).toBeDefined();
     });
   });

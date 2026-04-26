@@ -10,7 +10,7 @@ import * as argon2 from 'argon2';
 import { PrismaService } from '@prisma-client/prisma.service';
 import { UsersService } from '@users/service.users';
 import { NotificationsService } from '@notifications/service.notifications';
-import { normalizeNigerianPhone } from '@common/lib/utils/util.phone';
+import { normalizeNigerianPhone, isEmail } from '@common/lib/utils/util.phone';
 import {
   VERIFICATION_OTP_SENT,
   VERIFICATION_OTP_RESENT,
@@ -30,9 +30,6 @@ import { JwtPayload } from './strategies/jwt.strategy';
 const OTP_TTL_MINUTES = 10;
 const REFRESH_TTL_DAYS = 30;
 
-// Matches a@b.c pattern — used to distinguish email from phone identifier
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 @Injectable()
 export class AuthService {
   constructor(
@@ -46,15 +43,18 @@ export class AuthService {
   // ─── Signup ───────────────────────────────────────────────────────────────
 
   async signup(dto: SignupDto): Promise<{ message: string }> {
-    const phone = normalizeNigerianPhone(dto.phone);
+    const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
     const { user } = await this.users.findOrCreate(phone, dto.email);
 
-    // Only send OTP if user hasn't completed registration.
-    // Silently succeed for fully-registered phones to avoid enumeration.
     if (!user.pinHash) {
       const otp = this.generateOtp();
       await this.storeOtp(user.id, otp);
-      await this.notifications.sendOtp(phone, otp);
+
+      if (phone) {
+        await this.notifications.sendPhoneOtp(phone, otp);
+      } else {
+        await this.notifications.sendEmailOtp(dto.email!, otp);
+      }
     }
 
     return { message: VERIFICATION_OTP_SENT };
@@ -63,12 +63,9 @@ export class AuthService {
   // ─── Verify OTP ───────────────────────────────────────────────────────────
 
   async verifyOtp(dto: VerifyOtpDto): Promise<{ message: string; accessToken: string }> {
-    const phone = normalizeNigerianPhone(dto.phone);
-    const user = await this.users.findByPhone(phone);
+    const user = await this.resolveByIdentifier(dto.identifier);
 
-    // Generic error — never reveal whether phone is registered
     const invalid = new UnauthorizedException(INVALID_OTP);
-
     if (!user) throw invalid;
 
     const otpTypeId = await this.resolveTokenTypeId('OTP');
@@ -86,7 +83,8 @@ export class AuthService {
 
     await this.prisma.token.update({ where: { id: token.id }, data: { used: true } });
 
-    const accessToken = this.signAccess(user.id, user.phoneNumber);
+    const identifier = user.phoneNumber ?? user.email!;
+    const accessToken = this.signAccess(user.id, identifier);
     return { message: 'OTP verified successfully', accessToken };
   }
 
@@ -100,7 +98,8 @@ export class AuthService {
     await this.users.setPin(userId, pinHash);
 
     const user = await this.users.findById(userId);
-    const { accessToken, refreshToken } = await this.issueTokenPair(user!.id, user!.phoneNumber);
+    const identifier = user!.phoneNumber ?? user!.email!;
+    const { accessToken, refreshToken } = await this.issueTokenPair(user!.id, identifier);
 
     return { message: CREATE_PIN, accessToken, refreshToken };
   }
@@ -110,9 +109,7 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{ message: string; accessToken: string; refreshToken: string }> {
     const user = await this.resolveByIdentifier(dto.identifier);
 
-    // Generic error — never reveal whether identifier is registered
     const invalid = new UnauthorizedException(INVALID_PIN);
-
     if (!user || !user.pinHash) throw invalid;
 
     const statusName = await this.prisma.userStatus
@@ -124,7 +121,8 @@ export class AuthService {
     const valid = await argon2.verify(user.pinHash, dto.pin);
     if (!valid) throw invalid;
 
-    const { accessToken, refreshToken } = await this.issueTokenPair(user.id, user.phoneNumber);
+    const identifier = user.phoneNumber ?? user.email!;
+    const { accessToken, refreshToken } = await this.issueTokenPair(user.id, identifier);
     return { message: USER_LOGIN_SUCCESSFULLY, accessToken, refreshToken };
   }
 
@@ -153,24 +151,28 @@ export class AuthService {
 
     if (!stored) throw new UnauthorizedException('Refresh token revoked or not found');
 
-    // Rotate: invalidate old token before issuing new pair
     await this.prisma.token.update({ where: { id: stored.id }, data: { used: true } });
 
-    return this.issueTokenPair(payload.sub, payload.phone);
+    return this.issueTokenPair(payload.sub, payload.identifier);
   }
 
   // ─── Resend OTP ───────────────────────────────────────────────────────────
 
   async resendOtp(dto: SignupDto): Promise<{ message: string }> {
-    const phone = normalizeNigerianPhone(dto.phone);
-    const user = await this.users.findByPhone(phone);
+    const user = dto.phone
+      ? await this.users.findByPhone(normalizeNigerianPhone(dto.phone))
+      : await this.users.findByEmail(dto.email!.toLowerCase());
 
-    // Always return success — do not reveal registration status
     if (user && !user.pinHash) {
       await this.invalidateOtps(user.id);
       const otp = this.generateOtp();
       await this.storeOtp(user.id, otp);
-      await this.notifications.sendOtp(phone, otp);
+
+      if (user.phoneNumber) {
+        await this.notifications.sendPhoneOtp(user.phoneNumber, otp);
+      } else {
+        await this.notifications.sendEmailOtp(user.email!, otp);
+      }
     }
 
     return { message: VERIFICATION_OTP_RESENT };
@@ -179,11 +181,10 @@ export class AuthService {
   // ─── Private helpers ──────────────────────────────────────────────────────
 
   private async resolveByIdentifier(identifier: string): Promise<User | null> {
-    if (EMAIL_PATTERN.test(identifier)) {
+    if (isEmail(identifier)) {
       return this.users.findByEmail(identifier.toLowerCase());
     }
-    const phone = normalizeNigerianPhone(identifier);
-    return this.users.findByPhone(phone);
+    return this.users.findByPhone(normalizeNigerianPhone(identifier));
   }
 
   private generateOtp(): string {
@@ -209,9 +210,9 @@ export class AuthService {
     });
   }
 
-  private signAccess(userId: string, phone: string): string {
+  private signAccess(userId: string, identifier: string): string {
     return this.jwt.sign(
-      { sub: userId, phone },
+      { sub: userId, identifier },
       {
         secret: this.config.get<string>('JWT_ACCESS_SECRET'),
         expiresIn: this.config.get<string>('JWT_ACCESS_TTL'),
@@ -221,12 +222,12 @@ export class AuthService {
 
   private async issueTokenPair(
     userId: string,
-    phone: string,
+    identifier: string,
   ): Promise<{ accessToken: string; refreshToken: string }> {
-    const accessToken = this.signAccess(userId, phone);
+    const accessToken = this.signAccess(userId, identifier);
 
     const refreshToken = this.jwt.sign(
-      { sub: userId, phone },
+      { sub: userId, identifier },
       {
         secret: this.config.get<string>('JWT_REFRESH_SECRET'),
         expiresIn: this.config.get<string>('JWT_REFRESH_TTL'),

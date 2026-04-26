@@ -1,11 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, Length, Matches } from 'class-validator';
+import { IsNotEmpty, IsString, Length, Matches } from 'class-validator';
 
 export class VerifyOtpDto {
-  @ApiProperty({ example: '08012345678' })
+  @ApiProperty({ example: '08012345678 or user@example.com', description: 'Phone number or email used at signup' })
   @IsString()
-  @Matches(/^(\+?234|0)[789]\d{9}$/, { message: 'Invalid Nigerian phone number' })
-  phone: string;
+  @IsNotEmpty()
+  identifier: string;
 
   @ApiProperty({ example: '123456' })
   @IsString()
