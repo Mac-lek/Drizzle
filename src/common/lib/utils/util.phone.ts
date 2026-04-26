@@ -1,5 +1,7 @@
 import { parsePhoneNumber, isValidPhoneNumber } from 'libphonenumber-js';
 
+export const isEmail = (value: string): boolean => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+
 export const normalizeNigerianPhone = (phone: string): string => {
   if (phone.startsWith('0')) return `+234${phone.slice(1)}`;
   if (phone.startsWith('234')) return `+${phone}`;
