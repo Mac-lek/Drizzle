@@ -8,12 +8,11 @@ import { UsersModule } from './users/users.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { envValidationSchema } from './config/env.validation';
+import { WalletModule } from './wallet/wallet.module';
+import { VaultModule } from './vault/vault.module';
+import { PaymentsModule } from './payments/payments.module';
 // import { KycModule } from './kyc/kyc.module';
-// import { WalletModule } from './wallet/wallet.module';
-// import { VaultModule } from './vault/vault.module';
 // import { DisbursementModule } from './disbursement/disbursement.module';
-// import { LedgerModule } from './ledger/ledger.module';
-// import { PaymentsModule } from './payments/payments.module';
 // import { ReconciliationModule } from './reconciliation/reconciliation.module';
 // import { AdminModule } from './admin/admin.module';
 // import { HealthModule } from './health/health.module';
@@ -34,12 +33,11 @@ import { envValidationSchema } from './config/env.validation';
     AuthModule,
     UsersModule,
     NotificationsModule,
+    WalletModule,
+    VaultModule,
+    PaymentsModule,
     // KycModule,
-    // WalletModule,
-    // VaultModule,
     // DisbursementModule,
-    // LedgerModule,
-    // PaymentsModule,
     // ReconciliationModule,
     // AdminModule,
     // HealthModule,
