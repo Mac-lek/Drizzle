@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from '@prisma-client/prisma.service';
 import { normalizeNigerianPhone } from '@common/lib/utils/util.phone';
+import { generateId } from '@common/lib/utils/util.id';
 import { UpdateProfileDto } from './lib/dto/dto.users.update-profile';
 
 @Injectable()
@@ -39,11 +40,12 @@ export class UsersService {
 
     const user = await this.prisma.user.create({
       data: {
+        id: generateId('usr'),
         ...(phoneNumber && { phoneNumber }),
         ...(email && { email }),
         kycStatusId: kycStatus.id,
         statusId: userStatus.id,
-        wallet: { create: {} },
+        wallet: { create: { id: generateId('wlt') } },
       },
     });
 

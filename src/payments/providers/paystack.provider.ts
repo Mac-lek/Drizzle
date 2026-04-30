@@ -18,6 +18,19 @@ export interface PaystackTransactionVerify {
   metadata?: Record<string, unknown>;
 }
 
+export interface PaystackCustomer {
+  id: number;
+  customer_code: string;
+  email: string;
+}
+
+export interface PaystackDedicatedAccount {
+  account_number: string;
+  account_name: string;
+  bank: { name: string; id: number; slug: string };
+  customer: { customer_code: string };
+}
+
 @Injectable()
 export class PaystackProvider {
   private readonly logger = new Logger(PaystackProvider.name);
@@ -49,6 +62,32 @@ export class PaystackProvider {
   async verifyTransaction(reference: string): Promise<PaystackTransactionVerify> {
     const { data } = await this.http.get(`/transaction/verify/${encodeURIComponent(reference)}`);
     return data.data as PaystackTransactionVerify;
+  }
+
+  async createCustomer(params: {
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+  }): Promise<PaystackCustomer> {
+    const { data } = await this.http.post('/customer', {
+      email: params.email,
+      first_name: params.firstName,
+      last_name: params.lastName,
+      phone: params.phone,
+    });
+    return data.data as PaystackCustomer;
+  }
+
+  async createDedicatedVirtualAccount(
+    customerCode: string,
+    preferredBank: string,
+  ): Promise<PaystackDedicatedAccount> {
+    const { data } = await this.http.post('/dedicated_account', {
+      customer: customerCode,
+      preferred_bank: preferredBank,
+    });
+    return data.data as PaystackDedicatedAccount;
   }
 
   verifySignature(rawBody: Buffer, signature: string): boolean {

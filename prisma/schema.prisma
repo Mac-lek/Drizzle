@@ -91,7 +91,7 @@ model TokenType {
 // ─── Core Models ──────────────────────────────────────────────────────────────
 
 model User {
-  id           String  @id @default(uuid())
+  id           String  @id
   phoneNumber  String? @unique
   email        String? @unique
   firstName    String?
@@ -122,7 +122,7 @@ model User {
 }
 
 model Token {
-  id     String @id @default(uuid())
+  id     String @id
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -142,7 +142,7 @@ model Token {
 }
 
 model Wallet {
-  id     String @id @default(uuid())
+  id     String @id
   userId String @unique
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -157,7 +157,7 @@ model Wallet {
 }
 
 model Vault {
-  id     String @id @default(uuid())
+  id     String @id
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
@@ -189,7 +189,7 @@ model Vault {
 }
 
 model Disbursement {
-  id         String @id @default(uuid())
+  id         String @id
   vaultId    String
   vault      Vault  @relation(fields: [vaultId], references: [id])
   userId     String
@@ -213,7 +213,7 @@ model Disbursement {
 }
 
 model LedgerEntry {
-  id            String @id @default(uuid())
+  id            String @id
   transactionId String
   accountId     String
   amountKobo    BigInt
@@ -235,7 +235,7 @@ model LedgerEntry {
 }
 
 model WebhookEvent {
-  id          String    @id @default(uuid())
+  id          String    @id
   provider    String
   eventId     String    @unique
   eventType   String
@@ -251,7 +251,7 @@ model WebhookEvent {
 }
 
 model UserActivityLog {
-  id          String  @id @default(uuid())
+  id          String  @id
   userId      String
   user        User    @relation(fields: [userId], references: [id])
   action      String
@@ -268,7 +268,7 @@ model UserActivityLog {
 }
 
 model AuditLog {
-  id         String  @id @default(uuid())
+  id         String  @id
   actorId    String?
   actorType  String
   action     String

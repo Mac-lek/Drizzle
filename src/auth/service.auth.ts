@@ -11,6 +11,7 @@ import { PrismaService } from '@prisma-client/prisma.service';
 import { UsersService } from '@users/service.users';
 import { NotificationsService } from '@notifications/service.notifications';
 import { normalizeNigerianPhone, isEmail } from '@common/lib/utils/util.phone';
+import { generateId } from '@common/lib/utils/util.id';
 import {
   VERIFICATION_OTP_SENT,
   VERIFICATION_OTP_RESENT,
@@ -199,7 +200,7 @@ export class AuthService {
   private async storeOtp(userId: string, otp: string): Promise<void> {
     const typeId = await this.resolveTokenTypeId('OTP');
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
-    await this.prisma.token.create({ data: { userId, typeId, token: otp, expiresAt } });
+    await this.prisma.token.create({ data: { id: generateId('tok'), userId, typeId, token: otp, expiresAt } });
   }
 
   private async invalidateOtps(userId: string): Promise<void> {
@@ -237,7 +238,7 @@ export class AuthService {
     const refreshTypeId = await this.resolveTokenTypeId('REFRESH');
     const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
     await this.prisma.token.create({
-      data: { userId, typeId: refreshTypeId, token: refreshToken, expiresAt },
+      data: { id: generateId('tok'), userId, typeId: refreshTypeId, token: refreshToken, expiresAt },
     });
 
     return { accessToken, refreshToken };

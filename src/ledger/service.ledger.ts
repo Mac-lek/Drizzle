@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@prisma-client/prisma.service';
+import { generateId } from '@common/lib/utils/util.id';
 
 export interface LedgerEntryInput {
   accountId: string;
@@ -21,6 +22,7 @@ export class LedgerService {
   async record(transactionId: string, entries: LedgerEntryInput[]): Promise<void> {
     const creates = await Promise.all(
       entries.map(async (e) => ({
+        id: generateId('led'),
         transactionId,
         accountId: e.accountId,
         amountKobo: e.amountKobo,
