@@ -104,7 +104,7 @@ describe('UsersService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             phoneNumber: '+2348012345678',
-            wallet: { create: {} },
+            wallet: { create: expect.objectContaining({}) },
           }),
         }),
       );

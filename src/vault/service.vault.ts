@@ -5,9 +5,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { randomUUID } from 'crypto';
 import { PrismaService } from '@prisma-client/prisma.service';
 import { WalletService } from '@wallet/service.wallet';
+import { generateId } from '@common/lib/utils/util.id';
 import { CreateVaultDto } from './lib/dto/dto.vault.create';
 
 const BREAK_PENALTY_RATE = 0.1;
@@ -31,11 +31,7 @@ export class VaultService {
     const lockedAmountKobo = BigInt(dto.lockedAmountKobo);
     const totalTranches = dto.totalTranches;
 
-    if (lockedAmountKobo % BigInt(totalTranches) !== BigInt(0)) {
-      throw new BadRequestException(
-        'Locked amount must be evenly divisible by the number of tranches',
-      );
-    }
+    // BigInt division floors automatically; the last tranche absorbs the remainder.
     const trancheAmountKobo = lockedAmountKobo / BigInt(totalTranches);
 
     const startsAt = new Date(dto.startsAt);
@@ -44,10 +40,6 @@ export class VaultService {
     }
 
     const wallet = await this.wallets.findByUserId(userId);
-    const balance = await this.wallets.getBalance(wallet.id);
-    if (balance < lockedAmountKobo) {
-      throw new BadRequestException('Insufficient wallet balance');
-    }
 
     const [frequency, activeStatus] = await Promise.all([
       this.prisma.dripFrequency.findUniqueOrThrow({ where: { name: dto.frequency } }),
@@ -55,10 +47,38 @@ export class VaultService {
     ]);
 
     const endsAt = this.computeEndsAt(startsAt, dto.frequency, totalTranches);
-    const vaultId = randomUUID();
-    const transactionId = randomUUID();
+    const vaultId = generateId('vlt');
+    const transactionId = generateId('txn');
 
     await this.prisma.$transaction(async (tx) => {
+      // Lock the wallet row so concurrent vault creates for the same wallet are serialized.
+      await tx.$queryRaw`SELECT id FROM wallets WHERE id = ${wallet.id} FOR UPDATE`;
+
+      const [debitId, creditId, walletTypeId, vaultTypeId] = await Promise.all([
+        this.resolveDirectionId(tx, 'DEBIT'),
+        this.resolveDirectionId(tx, 'CREDIT'),
+        this.resolveAccountTypeId(tx, 'USER_WALLET'),
+        this.resolveAccountTypeId(tx, 'VAULT'),
+      ]);
+
+      const [credits, debits] = await Promise.all([
+        tx.ledgerEntry.aggregate({
+          where: { accountId: wallet.id, accountTypeId: walletTypeId, directionId: creditId },
+          _sum: { amountKobo: true },
+        }),
+        tx.ledgerEntry.aggregate({
+          where: { accountId: wallet.id, accountTypeId: walletTypeId, directionId: debitId },
+          _sum: { amountKobo: true },
+        }),
+      ]);
+
+      const balance =
+        (credits._sum.amountKobo ?? BigInt(0)) - (debits._sum.amountKobo ?? BigInt(0));
+
+      if (balance < lockedAmountKobo) {
+        throw new BadRequestException('Insufficient wallet balance');
+      }
+
       await tx.vault.create({
         data: {
           id: vaultId,
@@ -74,16 +94,10 @@ export class VaultService {
         },
       });
 
-      const [debitId, creditId, walletTypeId, vaultTypeId] = await Promise.all([
-        this.resolveDirectionId(tx, 'DEBIT'),
-        this.resolveDirectionId(tx, 'CREDIT'),
-        this.resolveAccountTypeId(tx, 'USER_WALLET'),
-        this.resolveAccountTypeId(tx, 'VAULT'),
-      ]);
-
       await tx.ledgerEntry.createMany({
         data: [
           {
+            id: generateId('led'),
             transactionId,
             accountId: wallet.id,
             accountTypeId: walletTypeId,
@@ -92,6 +106,7 @@ export class VaultService {
             description: 'Vault lock: funds moved from wallet',
           },
           {
+            id: generateId('led'),
             transactionId,
             accountId: vaultId,
             accountTypeId: vaultTypeId,
@@ -139,7 +154,7 @@ export class VaultService {
     const returnKobo = remainingKobo - penaltyKobo;
 
     const wallet = await this.wallets.findByUserId(userId);
-    const transactionId = randomUUID();
+    const transactionId = generateId('txn');
 
     await this.prisma.$transaction(async (tx) => {
       const [debitId, creditId, vaultTypeId, walletTypeId, penaltyTypeId] = await Promise.all([
@@ -153,6 +168,7 @@ export class VaultService {
       await tx.ledgerEntry.createMany({
         data: [
           {
+            id: generateId('led'),
             transactionId,
             accountId: vaultId,
             accountTypeId: vaultTypeId,
@@ -161,6 +177,7 @@ export class VaultService {
             description: 'Vault break: return to wallet',
           },
           {
+            id: generateId('led'),
             transactionId,
             accountId: wallet.id,
             accountTypeId: walletTypeId,
@@ -169,6 +186,7 @@ export class VaultService {
             description: 'Vault break: funds returned',
           },
           {
+            id: generateId('led'),
             transactionId,
             accountId: vaultId,
             accountTypeId: vaultTypeId,
@@ -177,6 +195,7 @@ export class VaultService {
             description: 'Vault break: penalty',
           },
           {
+            id: generateId('led'),
             transactionId,
             accountId: PLATFORM_ACCOUNT_ID,
             accountTypeId: penaltyTypeId,

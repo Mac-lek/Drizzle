@@ -21,6 +21,7 @@ export const envValidationSchema = Joi.object({
   PAYSTACK_SECRET_KEY: Joi.string().required(),
   PAYSTACK_PUBLIC_KEY: Joi.string().required(),
   PAYSTACK_WEBHOOK_URL: Joi.string().uri().required(),
+  PAYSTACK_PREFERRED_BANK: Joi.string().default('wema-bank'),
 
   DOJAH_APP_ID: Joi.string().required(),
   DOJAH_PUBLIC_KEY: Joi.string().required(),
