@@ -137,6 +137,58 @@ describe('UsersService', () => {
     });
   });
 
+  describe('getProfile', () => {
+    const mockUserWithRelations = {
+      ...mockUser,
+      kycStatus: { name: 'NONE' },
+      status: { name: 'ACTIVE' },
+    };
+
+    it('returns profileComplete false when any required field is missing', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUserWithRelations);
+
+      const result = await service.getProfile('user-1');
+
+      expect(result.profileComplete).toBe(false);
+      expect(result.kycStatus).toBe('NONE');
+      expect(result.status).toBe('ACTIVE');
+    });
+
+    it('returns profileComplete true when firstName, lastName, email and phoneNumber are all set', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        ...mockUserWithRelations,
+        firstName: 'Ada',
+        lastName: 'Obi',
+        email: 'ada@example.com',
+        phoneNumber: '+2348012345678',
+      });
+
+      const result = await service.getProfile('user-1');
+
+      expect(result.profileComplete).toBe(true);
+    });
+
+    it('returns profileComplete false when phone is missing (email-only signup)', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue({
+        ...mockUserWithRelations,
+        firstName: 'Ada',
+        lastName: 'Obi',
+        email: 'ada@example.com',
+        phoneNumber: null,
+      });
+
+      const result = await service.getProfile('user-1');
+
+      expect(result.profileComplete).toBe(false);
+    });
+
+    it('throws NotFoundException when user does not exist', async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
+
+      await expect(service.getProfile('unknown')).rejects.toThrow('User not found');
+    });
+  });
+
   describe('updateProfile', () => {
     it('updates only provided fields', async () => {
       const updated = { ...mockUser, firstName: 'Ada' };
@@ -160,6 +212,15 @@ describe('UsersService', () => {
       const call = (prisma.user.update as jest.Mock).mock.calls[0]?.[0];
       expect(call?.data).not.toHaveProperty('email');
       expect(call?.data).not.toHaveProperty('lastName');
+    });
+
+    it('normalizes phone to E.164 when provided', async () => {
+      (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
+
+      await service.updateProfile('user-1', { phone: '08012345678' });
+
+      const call = (prisma.user.update as jest.Mock).mock.calls[0]?.[0];
+      expect(call?.data.phoneNumber).toBe('+2348012345678');
     });
   });
 });

@@ -1,9 +1,22 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { User } from '@prisma/client';
 import { PrismaService } from '@prisma-client/prisma.service';
 import { normalizeNigerianPhone } from '@common/lib/utils/util.phone';
 import { generateId } from '@common/lib/utils/util.id';
 import { UpdateProfileDto } from './lib/dto/dto.users.update-profile';
+
+export interface UserProfile {
+  id: string;
+  phoneNumber: string | null;
+  email: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  bvnVerified: boolean;
+  kycStatus: string;
+  status: string;
+  profileComplete: boolean;
+  createdAt: Date;
+}
 
 @Injectable()
 export class UsersService {
@@ -52,6 +65,30 @@ export class UsersService {
     return { user, created: true };
   }
 
+  async getProfile(userId: string): Promise<UserProfile> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        kycStatus: { select: { name: true } },
+        status: { select: { name: true } },
+      },
+    });
+    if (!user) throw new NotFoundException('User not found');
+
+    return {
+      id: user.id,
+      phoneNumber: user.phoneNumber,
+      email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      bvnVerified: user.bvnVerified,
+      kycStatus: user.kycStatus.name,
+      status: user.status.name,
+      profileComplete: !!(user.firstName && user.lastName && user.email && user.phoneNumber),
+      createdAt: user.createdAt,
+    };
+  }
+
   async setPin(userId: string, pinHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { pinHash } });
   }
@@ -63,6 +100,7 @@ export class UsersService {
         ...(dto.firstName !== undefined && { firstName: dto.firstName }),
         ...(dto.lastName !== undefined && { lastName: dto.lastName }),
         ...(dto.email !== undefined && { email: dto.email }),
+        ...(dto.phone !== undefined && { phoneNumber: normalizeNigerianPhone(dto.phone) }),
         ...(dto.fcmToken !== undefined && { fcmToken: dto.fcmToken }),
       },
     });
