@@ -14,7 +14,7 @@ export class DisbursementScheduler {
     private readonly disbursements: DisbursementService,
   ) {}
 
-  @Cron('* * * * *')
+  @Cron('0 0 * * *')
   async enqueueDueVaults(): Promise<void> {
     const vaults = await this.disbursements.findDueVaults();
 
