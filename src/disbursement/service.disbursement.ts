@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '@prisma-client/prisma.service';
 import { generateId } from '@common/lib/utils/util.id';
@@ -34,6 +34,67 @@ export class DisbursementService {
       if (v.tranchesSent >= v.totalTranches) return false;
       return this.computeNextDripAt(v.startsAt, v.tranchesSent, v.frequency.name) <= now;
     });
+  }
+
+  async findByUser(userId: string): Promise<Array<{
+    id: string;
+    vaultId: string;
+    dripNumber: number;
+    amountKobo: bigint;
+    status: { name: string };
+    failReason: string | null;
+    attemptedAt: Date | null;
+    completedAt: Date | null;
+    createdAt: Date;
+  }>> {
+    return this.prisma.disbursement.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        vaultId: true,
+        dripNumber: true,
+        amountKobo: true,
+        status: { select: { name: true } },
+        failReason: true,
+        attemptedAt: true,
+        completedAt: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findById(id: string, userId: string): Promise<{
+    id: string;
+    vaultId: string;
+    dripNumber: number;
+    amountKobo: bigint;
+    status: { name: string };
+    failReason: string | null;
+    attemptedAt: Date | null;
+    completedAt: Date | null;
+    createdAt: Date;
+  }> {
+    const disbursement = await this.prisma.disbursement.findFirst({
+      where: { id, userId },
+      select: {
+        id: true,
+        vaultId: true,
+        dripNumber: true,
+        amountKobo: true,
+        status: { select: { name: true } },
+        failReason: true,
+        attemptedAt: true,
+        completedAt: true,
+        createdAt: true,
+      },
+    });
+
+    if (!disbursement) {
+      throw new NotFoundException(`Disbursement ${id} not found`);
+    }
+
+    return disbursement;
   }
 
   async processDrip(vaultId: string): Promise<void> {

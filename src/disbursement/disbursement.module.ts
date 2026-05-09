@@ -4,6 +4,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { DisbursementService } from './service.disbursement';
 import { DisbursementProcessor } from './processor.disbursement';
 import { DisbursementScheduler } from './scheduler.disbursement';
+import { DisbursementController } from './controller.disbursement';
 import { DRIP_QUEUE } from './processor.disbursement';
 
 @Module({
@@ -11,6 +12,7 @@ import { DRIP_QUEUE } from './processor.disbursement';
     BullModule.registerQueue({ name: DRIP_QUEUE }),
     PrismaModule,
   ],
+  controllers: [DisbursementController],
   providers: [DisbursementService, DisbursementProcessor, DisbursementScheduler],
   exports: [DisbursementService],
 })
