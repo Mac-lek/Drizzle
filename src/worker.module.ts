@@ -8,6 +8,7 @@ import { AppConfigModule } from "./config/config.module";
 import { PrismaModule } from "./prisma/prisma.module";
 import { NotificationsModule } from "./notifications/notifications.module";
 import { DisbursementModule } from "./disbursement/disbursement.module";
+import { ReconciliationModule } from "./reconciliation/reconciliation.module";
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { DisbursementModule } from "./disbursement/disbursement.module";
       inject: [ConfigService],
     }),
     DisbursementModule,
+    ReconciliationModule,
   ],
 })
 export class WorkerModule {}
