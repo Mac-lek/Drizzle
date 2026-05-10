@@ -44,6 +44,8 @@ export const envValidationSchema = Joi.object({
 
   FCM_SERVICE_ACCOUNT_JSON: Joi.string().required(),
 
+  X_API_KEY: Joi.string().min(32).required(),
+
   SENTRY_DSN: Joi.string().uri().optional(),
 
   BVN_ENCRYPTION_KEY_ID: Joi.string().required(),

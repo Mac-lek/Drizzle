@@ -18,6 +18,7 @@ import {
 import { Request } from 'express';
 import { User } from '@prisma/client';
 import { Public } from '@common/decorators/public.decorator';
+import { SkipApiKey } from '@common/decorators/skip-api-key.decorator';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { PaymentsService } from './service.payments';
 import { FundDto } from './lib/dto/dto.payments.fund';
@@ -46,6 +47,7 @@ export class PaymentsController {
   }
 
   @Public()
+  @SkipApiKey()
   @Post('webhook')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Paystack webhook receiver (internal)' })
