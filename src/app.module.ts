@@ -16,8 +16,8 @@ import { VaultModule } from './vault/vault.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DisbursementModule } from './disbursement/disbursement.module';
 import { KycModule } from './kyc/kyc.module';
+import { AdminModule } from './admin/admin.module';
 // import { ReconciliationModule } from './reconciliation/reconciliation.module';
-// import { AdminModule } from './admin/admin.module';
 // import { HealthModule } from './health/health.module';
 
 @Module({
@@ -50,8 +50,8 @@ import { KycModule } from './kyc/kyc.module';
     PaymentsModule,
     DisbursementModule,
     KycModule,
+    AdminModule,
     // ReconciliationModule,
-    // AdminModule,
     // HealthModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],

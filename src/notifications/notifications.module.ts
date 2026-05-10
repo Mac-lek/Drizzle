@@ -8,6 +8,6 @@ import { NotificationsService } from './service.notifications';
 @Module({
   imports: [HttpModule, ConfigModule],
   providers: [TermiiProvider, EmailProvider, NotificationsService],
-  exports: [NotificationsService],
+  exports: [NotificationsService, EmailProvider],
 })
 export class NotificationsModule {}

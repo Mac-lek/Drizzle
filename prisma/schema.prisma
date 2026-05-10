@@ -285,3 +285,140 @@ model AuditLog {
 
   @@map("audit_logs")
 }
+
+// ─── Admin ────────────────────────────────────────────────────────────────────
+
+model AdminStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // PENDING | ACTIVE | INACTIVE | SUSPENDED | DEACTIVATED
+  label String
+
+  admins Admin[]
+
+  @@map("admin_statuses")
+}
+
+model AdminRoleStatus {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // ACTIVE | DEACTIVATED
+  label String
+
+  roles AdminRole[]
+
+  @@map("admin_role_statuses")
+}
+
+model AdminResource {
+  id    Int    @id @default(autoincrement())
+  name  String @unique // users | kyc | wallets | vaults | disbursements | payments | ledger | admins | activity_logs
+  label String
+
+  rolePermissions AdminRolePermission[]
+  userPermissions AdminUserPermission[]
+
+  @@map("admin_resources")
+}
+
+model AdminRole {
+  code String @id // SADM | COMPLIANCE | SUPPORT | FINANCE | OPS
+  name String
+
+  statusId Int
+  status   AdminRoleStatus @relation(fields: [statusId], references: [id])
+
+  admins      Admin[]
+  permissions AdminRolePermission[]
+
+  @@map("admin_roles")
+}
+
+model AdminRolePermission {
+  id          Int    @id @default(autoincrement())
+  roleCode    String
+  role        AdminRole     @relation(fields: [roleCode], references: [code])
+  resourceId  Int
+  resource    AdminResource @relation(fields: [resourceId], references: [id])
+  permissions String        // comma-separated: "read,credit,debit"
+
+  @@unique([roleCode, resourceId])
+  @@map("admin_role_permissions")
+}
+
+model AdminUserPermission {
+  id          Int    @id @default(autoincrement())
+  adminId    String
+  admin      Admin         @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  resourceId  Int
+  resource    AdminResource @relation(fields: [resourceId], references: [id])
+  permissions String
+
+  @@unique([adminId, resourceId])
+  @@map("admin_user_permissions")
+}
+
+model AdminToken {
+  id        String   @id
+  adminId   String
+  admin     Admin    @relation(fields: [adminId], references: [id], onDelete: Cascade)
+  type      String   // OTP | REFRESH | INVITE
+  token     String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([token])
+
+  @@map("admin_tokens")
+}
+
+model Admin {
+  id                String   @id
+  email             String   @unique
+  passwordHash      String?
+  firstName         String?
+  lastName          String?
+  phoneNumber       String?
+  isProfileComplete Boolean  @default(false)
+  invalidOtpCount   Int      @default(0)
+
+  invitedById String?
+  invitedBy   Admin?  @relation("AdminInvites", fields: [invitedById], references: [id])
+  invites     Admin[] @relation("AdminInvites")
+
+  roleCode String
+  role     AdminRole @relation(fields: [roleCode], references: [code])
+
+  statusId Int
+  status   AdminStatus @relation(fields: [statusId], references: [id])
+
+  tokens          AdminToken[]
+  userPermissions AdminUserPermission[]
+  activityLogs    AdminActivityLog[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([statusId])
+
+  @@map("admins")
+}
+
+model AdminActivityLog {
+  id           String  @id
+  adminId      String
+  admin        Admin   @relation(fields: [adminId], references: [id])
+  activityType String  // see AdminActivityType enum in src/admin/lib/enums/lib.enum.admin-activity.ts
+  description  String
+  metadata     Json?
+  ipAddress    String?
+
+  createdAt DateTime @default(now())
+
+  @@index([adminId])
+  @@index([createdAt])
+
+  @@map("admin_activity_logs")
+}
