@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bullmq';
 import { LoggerModule } from 'nestjs-pino';
+import IORedis from 'ioredis';
 import { AppConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
@@ -11,8 +14,8 @@ import { envValidationSchema } from './config/env.validation';
 import { WalletModule } from './wallet/wallet.module';
 import { VaultModule } from './vault/vault.module';
 import { PaymentsModule } from './payments/payments.module';
+import { DisbursementModule } from './disbursement/disbursement.module';
 // import { KycModule } from './kyc/kyc.module';
-// import { DisbursementModule } from './disbursement/disbursement.module';
 // import { ReconciliationModule } from './reconciliation/reconciliation.module';
 // import { AdminModule } from './admin/admin.module';
 // import { HealthModule } from './health/health.module';
@@ -30,14 +33,23 @@ import { PaymentsModule } from './payments/payments.module';
     }),
     AppConfigModule,
     PrismaModule,
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (config: ConfigService) => ({
+        connection: new IORedis(config.get<string>('REDIS_URL')!, {
+          maxRetriesPerRequest: null,
+        }),
+      }),
+      inject: [ConfigService],
+    }),
     AuthModule,
     UsersModule,
     NotificationsModule,
     WalletModule,
     VaultModule,
     PaymentsModule,
+    DisbursementModule,
     // KycModule,
-    // DisbursementModule,
     // ReconciliationModule,
     // AdminModule,
     // HealthModule,
