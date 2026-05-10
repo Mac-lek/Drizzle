@@ -62,7 +62,7 @@ export class AdminController {
 
   @Patch(":id/status")
   @HttpCode(HttpStatus.OK)
-  @RequirePermission("admins", "invite")
+  @RequirePermission("admins", "revoke")
   @ApiOperation({ summary: "Activate, suspend, or deactivate an admin" })
   updateStatus(
     @CurrentAdmin() actor: any,
