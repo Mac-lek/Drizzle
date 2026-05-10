@@ -31,6 +31,7 @@ export const envValidationSchema = Joi.object({
   SMILE_PARTNER_ID: Joi.string().required(),
   SMILE_API_KEY: Joi.string().required(),
   SMILE_CALLBACK_URL: Joi.string().uri().required(),
+  SMILE_BASE_URL: Joi.string().uri().default('https://testapi.smileidentity.com'),
 
   TERMII_API_KEY: Joi.string().required(),
   TERMII_SENDER_ID: Joi.string().default('Drizzle'),
