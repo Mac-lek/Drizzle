@@ -47,6 +47,11 @@ export const envValidationSchema = Joi.object({
 
   X_API_KEY: Joi.string().min(32).required(),
 
+  ADMIN_JWT_ACCESS_SECRET: Joi.string().required(),
+  ADMIN_JWT_ACCESS_TTL: Joi.string().default('15m'),
+  ADMIN_JWT_REFRESH_SECRET: Joi.string().required(),
+  ADMIN_JWT_REFRESH_TTL: Joi.string().default('30d'),
+
   SENTRY_DSN: Joi.string().uri().optional(),
 
   BVN_ENCRYPTION_KEY: Joi.string().length(64).required(),
