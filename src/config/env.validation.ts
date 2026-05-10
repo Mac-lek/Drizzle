@@ -46,5 +46,5 @@ export const envValidationSchema = Joi.object({
 
   SENTRY_DSN: Joi.string().uri().optional(),
 
-  BVN_ENCRYPTION_KEY_ID: Joi.string().required(),
+  BVN_ENCRYPTION_KEY: Joi.string().length(64).required(),
 });

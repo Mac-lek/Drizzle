@@ -15,7 +15,7 @@ import { WalletModule } from './wallet/wallet.module';
 import { VaultModule } from './vault/vault.module';
 import { PaymentsModule } from './payments/payments.module';
 import { DisbursementModule } from './disbursement/disbursement.module';
-// import { KycModule } from './kyc/kyc.module';
+import { KycModule } from './kyc/kyc.module';
 // import { ReconciliationModule } from './reconciliation/reconciliation.module';
 // import { AdminModule } from './admin/admin.module';
 // import { HealthModule } from './health/health.module';
@@ -49,7 +49,7 @@ import { DisbursementModule } from './disbursement/disbursement.module';
     VaultModule,
     PaymentsModule,
     DisbursementModule,
-    // KycModule,
+    KycModule,
     // ReconciliationModule,
     // AdminModule,
     // HealthModule,
