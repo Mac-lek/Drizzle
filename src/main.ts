@@ -32,6 +32,7 @@ async function bootstrap() {
       .setDescription('Scheduled savings disbursement API')
       .setVersion('1.0')
       .addBearerAuth()
+      .addApiKey({ type: 'apiKey', in: 'header', name: 'x-api-key' }, 'x-api-key')
       .build();
     SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
   }

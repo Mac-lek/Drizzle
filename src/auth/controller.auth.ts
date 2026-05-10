@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
   ApiUnauthorizedResponse,
   ApiBadRequestResponse,
@@ -24,6 +25,7 @@ import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { User } from '@prisma/client';
 
 @ApiTags('Auth')
+@ApiSecurity('x-api-key')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly auth: AuthService) {}
