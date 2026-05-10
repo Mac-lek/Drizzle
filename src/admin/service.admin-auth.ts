@@ -3,18 +3,18 @@ import {
   Injectable,
   Logger,
   UnauthorizedException,
-} from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
-import { ConfigService } from '@nestjs/config';
-import * as argon2 from 'argon2';
-import { PrismaService } from '@prisma-client/prisma.service';
-import { EmailProvider } from '@notifications/providers/nodemailer.provider';
-import { generateId } from '@common/lib/utils/util.id';
-import { AdminActivityType } from './lib/enums/lib.enum.admin-activity';
-import { AdminLoginDto } from './lib/dto/dto.admin-auth.login';
-import { AdminVerifyOtpDto } from './lib/dto/dto.admin-auth.verify-otp';
-import { AcceptInviteDto } from './lib/dto/dto.admin-auth.accept-invite';
-import { AdminRefreshDto } from './lib/dto/dto.admin-auth.refresh';
+} from "@nestjs/common";
+import { JwtService } from "@nestjs/jwt";
+import { ConfigService } from "@nestjs/config";
+import * as argon2 from "argon2";
+import { PrismaService } from "@prisma-client/prisma.service";
+import { EmailProvider } from "@notifications/providers/nodemailer.provider";
+import { generateId } from "@common/lib/utils/util.id";
+import { AdminActivityType } from "./lib/enums/lib.enum.admin-activity";
+import { AdminLoginDto } from "./lib/dto/dto.admin-auth.login";
+import { AdminVerifyOtpDto } from "./lib/dto/dto.admin-auth.verify-otp";
+import { AcceptInviteDto } from "./lib/dto/dto.admin-auth.accept-invite";
+import { AdminRefreshDto } from "./lib/dto/dto.admin-auth.refresh";
 
 const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -36,23 +36,33 @@ export class AdminAuthService {
       include: { status: { select: { name: true } } },
     });
 
-    await this.log(admin?.id, AdminActivityType.LOGIN_REQUEST, `Login attempt for ${dto.email}`, ip);
+    await this.log(
+      admin?.id,
+      AdminActivityType.LOGIN_REQUEST,
+      `Login attempt for ${dto.email}`,
+      ip,
+    );
 
     // Generic error — never reveal whether email exists
-    const invalid = () => new UnauthorizedException('Invalid credentials');
+    const invalid = () => new UnauthorizedException("Invalid credentials");
 
     if (!admin || !admin.passwordHash) throw invalid();
-    if (!['ACTIVE'].includes(admin.status.name)) throw invalid();
+    if (!["ACTIVE"].includes(admin.status.name)) throw invalid();
 
     const passwordValid = await argon2.verify(admin.passwordHash, dto.password);
     if (!passwordValid) {
-      await this.log(admin.id, AdminActivityType.LOGIN_FAILED, 'Wrong password', ip);
+      await this.log(
+        admin.id,
+        AdminActivityType.LOGIN_FAILED,
+        "Wrong password",
+        ip,
+      );
       throw invalid();
     }
 
     // Invalidate old OTPs, issue new one
     await this.prisma.adminToken.updateMany({
-      where: { adminId: admin.id, type: 'OTP', used: false },
+      where: { adminId: admin.id, type: "OTP", used: false },
       data: { used: true },
     });
 
@@ -62,9 +72,9 @@ export class AdminAuthService {
 
     await this.prisma.adminToken.create({
       data: {
-        id: generateId('atok'),
+        id: generateId("atok"),
         adminId: admin.id,
-        type: 'OTP',
+        type: "OTP",
         token: otpHash,
         expiresAt,
       },
@@ -72,75 +82,121 @@ export class AdminAuthService {
 
     await this.email.sendEmail(
       admin.email,
-      'Drizzle Admin — Your login OTP',
+      "Drizzle Admin — Your login OTP",
       `Your OTP is <b>${otp}</b>. Valid for ${OTP_TTL_MINUTES} minutes. Do not share.`,
     );
 
-    return { message: 'OTP sent to your email' };
+    return { message: "OTP sent to your email" };
   }
 
-  async verifyOtp(dto: AdminVerifyOtpDto, ip?: string): Promise<{ accessToken: string; refreshToken: string }> {
+  async verifyOtp(
+    dto: AdminVerifyOtpDto,
+    ip?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const admin = await this.prisma.admin.findUnique({
       where: { email: dto.email },
       include: { status: { select: { name: true } } },
     });
 
-    if (!admin || admin.status.name !== 'ACTIVE') throw new UnauthorizedException('Invalid credentials');
+    if (!admin || admin.status.name !== "ACTIVE")
+      throw new UnauthorizedException("Invalid credentials");
 
     if (admin.invalidOtpCount >= MAX_OTP_ATTEMPTS) {
-      throw new UnauthorizedException('Account locked due to too many failed OTP attempts');
+      throw new UnauthorizedException(
+        "Account locked due to too many failed OTP attempts",
+      );
     }
 
     const otpRecord = await this.prisma.adminToken.findFirst({
-      where: { adminId: admin.id, type: 'OTP', used: false, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
+      where: {
+        adminId: admin.id,
+        type: "OTP",
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    const valid = otpRecord && await argon2.verify(otpRecord.token, dto.otp);
+    const valid = otpRecord && (await argon2.verify(otpRecord.token, dto.otp));
 
     if (!valid) {
       await this.prisma.admin.update({
         where: { id: admin.id },
         data: { invalidOtpCount: { increment: 1 } },
       });
-      await this.log(admin.id, AdminActivityType.LOGIN_FAILED, 'Invalid OTP', ip);
-      throw new UnauthorizedException('Invalid or expired OTP');
+      await this.log(
+        admin.id,
+        AdminActivityType.LOGIN_FAILED,
+        "Invalid OTP",
+        ip,
+      );
+      throw new UnauthorizedException("Invalid or expired OTP");
     }
 
-    await this.prisma.adminToken.update({ where: { id: otpRecord.id }, data: { used: true } });
-    await this.prisma.admin.update({ where: { id: admin.id }, data: { invalidOtpCount: 0 } });
+    await this.prisma.adminToken.update({
+      where: { id: otpRecord.id },
+      data: { used: true },
+    });
+    await this.prisma.admin.update({
+      where: { id: admin.id },
+      data: { invalidOtpCount: 0 },
+    });
 
-    const tokens = await this.issueTokens(admin.id, admin.email, admin.roleCode);
-    await this.log(admin.id, AdminActivityType.LOGIN_SUCCESS, 'Login successful', ip);
+    const tokens = await this.issueTokens(
+      admin.id,
+      admin.email,
+      admin.roleCode,
+    );
+    await this.log(
+      admin.id,
+      AdminActivityType.LOGIN_SUCCESS,
+      "Login successful",
+      ip,
+    );
 
     return tokens;
   }
 
-  async refresh(dto: AdminRefreshDto): Promise<{ accessToken: string; refreshToken: string }> {
+  async refresh(
+    dto: AdminRefreshDto,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     const record = await this.prisma.adminToken.findFirst({
-      where: { type: 'REFRESH', used: false, expiresAt: { gt: new Date() } },
+      where: { type: "REFRESH", used: false, expiresAt: { gt: new Date() } },
       include: { admin: { include: { status: { select: { name: true } } } } },
     });
 
-    const valid = record && await argon2.verify(record.token, dto.refreshToken);
-    if (!valid || record.admin.status.name !== 'ACTIVE') throw new UnauthorizedException('Invalid refresh token');
+    const valid =
+      record && (await argon2.verify(record.token, dto.refreshToken));
+    if (!valid || record.admin.status.name !== "ACTIVE")
+      throw new UnauthorizedException("Invalid refresh token");
 
-    await this.prisma.adminToken.update({ where: { id: record.id }, data: { used: true } });
+    await this.prisma.adminToken.update({
+      where: { id: record.id },
+      data: { used: true },
+    });
 
-    return this.issueTokens(record.admin.id, record.admin.email, record.admin.roleCode);
+    return this.issueTokens(
+      record.admin.id,
+      record.admin.email,
+      record.admin.roleCode,
+    );
   }
 
   async acceptInvite(dto: AcceptInviteDto): Promise<{ message: string }> {
     const record = await this.prisma.adminToken.findFirst({
-      where: { type: 'INVITE', used: false, expiresAt: { gt: new Date() } },
+      where: { type: "INVITE", used: false, expiresAt: { gt: new Date() } },
       include: { admin: { include: { status: { select: { name: true } } } } },
     });
 
-    const valid = record && await argon2.verify(record.token, dto.token);
-    if (!valid) throw new BadRequestException('Invalid or expired invite token');
-    if (record.admin.status.name !== 'PENDING') throw new BadRequestException('Invite already accepted');
+    const valid = record && (await argon2.verify(record.token, dto.token));
+    if (!valid)
+      throw new BadRequestException("Invalid or expired invite token");
+    if (record.admin.status.name !== "PENDING")
+      throw new BadRequestException("Invite already accepted");
 
-    const activeStatus = await this.prisma.adminStatus.findUniqueOrThrow({ where: { name: 'ACTIVE' } });
+    const activeStatus = await this.prisma.adminStatus.findUniqueOrThrow({
+      where: { name: "ACTIVE" },
+    });
     const passwordHash = await argon2.hash(dto.password);
 
     await this.prisma.admin.update({
@@ -148,29 +204,36 @@ export class AdminAuthService {
       data: { passwordHash, statusId: activeStatus.id },
     });
 
-    await this.prisma.adminToken.update({ where: { id: record.id }, data: { used: true } });
-    await this.log(record.admin.id, AdminActivityType.ACCEPT_INVITE, 'Invite accepted, account activated');
+    await this.prisma.adminToken.update({
+      where: { id: record.id },
+      data: { used: true },
+    });
+    await this.log(
+      record.admin.id,
+      AdminActivityType.ACCEPT_INVITE,
+      "Invite accepted, account activated",
+    );
 
-    return { message: 'Account activated. You can now log in.' };
+    return { message: "Account activated. You can now log in." };
   }
 
   private async issueTokens(adminId: string, email: string, role: string) {
     const payload = { sub: adminId, email, role };
 
     const accessToken = this.jwt.sign(payload, {
-      secret: this.config.getOrThrow('ADMIN_JWT_ACCESS_SECRET'),
-      expiresIn: this.config.get('ADMIN_JWT_ACCESS_TTL', '15m'),
+      secret: this.config.getOrThrow("ADMIN_JWT_ACCESS_SECRET"),
+      expiresIn: this.config.get("ADMIN_JWT_ACCESS_TTL", "15m"),
     });
 
-    const rawRefresh = generateId('rfsh');
+    const rawRefresh = generateId("rfsh");
     const refreshHash = await argon2.hash(rawRefresh);
     const refreshTtlDays = 30;
 
     await this.prisma.adminToken.create({
       data: {
-        id: generateId('atok'),
+        id: generateId("atok"),
         adminId,
-        type: 'REFRESH',
+        type: "REFRESH",
         token: refreshHash,
         expiresAt: new Date(Date.now() + refreshTtlDays * 24 * 60 * 60 * 1000),
       },
@@ -179,16 +242,25 @@ export class AdminAuthService {
     return { accessToken, refreshToken: rawRefresh };
   }
 
-  private async log(adminId: string | undefined, activityType: AdminActivityType, description: string, ipAddress?: string) {
+  private async log(
+    adminId: string | undefined,
+    activityType: AdminActivityType,
+    description: string,
+    ipAddress?: string,
+  ) {
     if (!adminId) return;
-    await this.prisma.adminActivityLog.create({
-      data: {
-        id: generateId('aalg'),
-        adminId,
-        activityType,
-        description,
-        ipAddress,
-      },
-    }).catch(() => { /* never fail a request over logging */ });
+    await this.prisma.adminActivityLog
+      .create({
+        data: {
+          id: generateId("aalg"),
+          adminId,
+          activityType,
+          description,
+          ipAddress,
+        },
+      })
+      .catch(() => {
+        /* never fail a request over logging */
+      });
   }
 }

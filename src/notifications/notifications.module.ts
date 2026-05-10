@@ -1,9 +1,9 @@
-import { Module } from '@nestjs/common';
-import { HttpModule } from '@nestjs/axios';
-import { ConfigModule } from '@nestjs/config';
-import { TermiiProvider } from './providers/termii.provider';
-import { EmailProvider } from './providers/nodemailer.provider';
-import { NotificationsService } from './service.notifications';
+import { Module } from "@nestjs/common";
+import { HttpModule } from "@nestjs/axios";
+import { ConfigModule } from "@nestjs/config";
+import { TermiiProvider } from "./providers/termii.provider";
+import { EmailProvider } from "./providers/nodemailer.provider";
+import { NotificationsService } from "./service.notifications";
 
 @Module({
   imports: [HttpModule, ConfigModule],

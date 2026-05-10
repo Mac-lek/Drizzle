@@ -1,13 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { UsersService } from './service.users';
-import { PrismaService } from '@prisma-client/prisma.service';
+import { Test, TestingModule } from "@nestjs/testing";
+import { UsersService } from "./service.users";
+import { PrismaService } from "@prisma-client/prisma.service";
 
-const mockKycStatus = { id: 1, name: 'NONE', label: 'None' };
-const mockUserStatus = { id: 1, name: 'ACTIVE', label: 'Active' };
+const mockKycStatus = { id: 1, name: "NONE", label: "None" };
+const mockUserStatus = { id: 1, name: "ACTIVE", label: "Active" };
 
 const mockUser = {
-  id: 'user-1',
-  phoneNumber: '+2348012345678',
+  id: "user-1",
+  phoneNumber: "+2348012345678",
   email: null,
   pinHash: null,
   statusId: 1,
@@ -21,7 +21,7 @@ const mockUser = {
   updatedAt: new Date(),
 };
 
-describe('UsersService', () => {
+describe("UsersService", () => {
   let service: UsersService;
   let prisma: jest.Mocked<PrismaService>;
 
@@ -37,8 +37,12 @@ describe('UsersService', () => {
               create: jest.fn(),
               update: jest.fn(),
             },
-            kycStatus: { findUniqueOrThrow: jest.fn().mockResolvedValue(mockKycStatus) },
-            userStatus: { findUniqueOrThrow: jest.fn().mockResolvedValue(mockUserStatus) },
+            kycStatus: {
+              findUniqueOrThrow: jest.fn().mockResolvedValue(mockKycStatus),
+            },
+            userStatus: {
+              findUniqueOrThrow: jest.fn().mockResolvedValue(mockUserStatus),
+            },
           },
         },
       ],
@@ -48,179 +52,188 @@ describe('UsersService', () => {
     prisma = module.get(PrismaService);
   });
 
-  describe('findById', () => {
-    it('returns user when found', async () => {
+  describe("findById", () => {
+    it("returns user when found", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      const result = await service.findById('user-1');
+      const result = await service.findById("user-1");
       expect(result).toEqual(mockUser);
     });
 
-    it('returns null when not found', async () => {
+    it("returns null when not found", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      const result = await service.findById('unknown');
+      const result = await service.findById("unknown");
       expect(result).toBeNull();
     });
   });
 
-  describe('findByEmail', () => {
-    it('looks up by email', async () => {
+  describe("findByEmail", () => {
+    it("looks up by email", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
-      await service.findByEmail('user@example.com');
+      await service.findByEmail("user@example.com");
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { email: 'user@example.com' },
+        where: { email: "user@example.com" },
       });
     });
   });
 
-  describe('findOrCreate', () => {
-    it('returns existing user without creating a new one', async () => {
+  describe("findOrCreate", () => {
+    it("returns existing user without creating a new one", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUser);
 
-      const { user, created } = await service.findOrCreate('08012345678');
+      const { created } = await service.findOrCreate("08012345678");
 
       expect(created).toBe(false);
       expect(prisma.user.create).not.toHaveBeenCalled();
     });
 
-    it('normalizes the phone number to E.164', async () => {
+    it("normalizes the phone number to E.164", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.create as jest.Mock).mockResolvedValue(mockUser);
 
-      await service.findOrCreate('08012345678');
+      await service.findOrCreate("08012345678");
 
       expect(prisma.user.findUnique).toHaveBeenCalledWith({
-        where: { phoneNumber: '+2348012345678' },
+        where: { phoneNumber: "+2348012345678" },
       });
     });
 
-    it('creates a new user with wallet when phone is not registered', async () => {
+    it("creates a new user with wallet when phone is not registered", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
       (prisma.user.create as jest.Mock).mockResolvedValue(mockUser);
 
-      const { user, created } = await service.findOrCreate('08012345678');
+      const { created } = await service.findOrCreate("08012345678");
 
       expect(created).toBe(true);
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            phoneNumber: '+2348012345678',
+            phoneNumber: "+2348012345678",
             wallet: { create: expect.objectContaining({}) },
           }),
         }),
       );
     });
 
-    it('includes email when provided', async () => {
+    it("includes email when provided", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
-      (prisma.user.create as jest.Mock).mockResolvedValue({ ...mockUser, email: 'u@example.com' });
+      (prisma.user.create as jest.Mock).mockResolvedValue({
+        ...mockUser,
+        email: "u@example.com",
+      });
 
-      await service.findOrCreate('08012345678', 'u@example.com');
+      await service.findOrCreate("08012345678", "u@example.com");
 
       expect(prisma.user.create).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({ email: 'u@example.com' }),
+          data: expect.objectContaining({ email: "u@example.com" }),
         }),
       );
     });
   });
 
-  describe('setPin', () => {
-    it('updates the user pinHash', async () => {
+  describe("setPin", () => {
+    it("updates the user pinHash", async () => {
       (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
 
-      await service.setPin('user-1', 'hashed-pin');
+      await service.setPin("user-1", "hashed-pin");
 
       expect(prisma.user.update).toHaveBeenCalledWith({
-        where: { id: 'user-1' },
-        data: { pinHash: 'hashed-pin' },
+        where: { id: "user-1" },
+        data: { pinHash: "hashed-pin" },
       });
     });
   });
 
-  describe('getProfile', () => {
+  describe("getProfile", () => {
     const mockUserWithRelations = {
       ...mockUser,
-      kycStatus: { name: 'NONE' },
-      status: { name: 'ACTIVE' },
+      kycStatus: { name: "NONE" },
+      status: { name: "ACTIVE" },
     };
 
-    it('returns profileComplete false when any required field is missing', async () => {
-      (prisma.user.findUnique as jest.Mock).mockResolvedValue(mockUserWithRelations);
+    it("returns profileComplete false when any required field is missing", async () => {
+      (prisma.user.findUnique as jest.Mock).mockResolvedValue(
+        mockUserWithRelations,
+      );
 
-      const result = await service.getProfile('user-1');
+      const result = await service.getProfile("user-1");
 
       expect(result.profileComplete).toBe(false);
-      expect(result.kycStatus).toBe('NONE');
-      expect(result.status).toBe('ACTIVE');
+      expect(result.kycStatus).toBe("NONE");
+      expect(result.status).toBe("ACTIVE");
     });
 
-    it('returns profileComplete true when firstName, lastName, email and phoneNumber are all set', async () => {
+    it("returns profileComplete true when firstName, lastName, email and phoneNumber are all set", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         ...mockUserWithRelations,
-        firstName: 'Ada',
-        lastName: 'Obi',
-        email: 'ada@example.com',
-        phoneNumber: '+2348012345678',
+        firstName: "Ada",
+        lastName: "Obi",
+        email: "ada@example.com",
+        phoneNumber: "+2348012345678",
       });
 
-      const result = await service.getProfile('user-1');
+      const result = await service.getProfile("user-1");
 
       expect(result.profileComplete).toBe(true);
     });
 
-    it('returns profileComplete false when phone is missing (email-only signup)', async () => {
+    it("returns profileComplete false when phone is missing (email-only signup)", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue({
         ...mockUserWithRelations,
-        firstName: 'Ada',
-        lastName: 'Obi',
-        email: 'ada@example.com',
+        firstName: "Ada",
+        lastName: "Obi",
+        email: "ada@example.com",
         phoneNumber: null,
       });
 
-      const result = await service.getProfile('user-1');
+      const result = await service.getProfile("user-1");
 
       expect(result.profileComplete).toBe(false);
     });
 
-    it('throws NotFoundException when user does not exist', async () => {
+    it("throws NotFoundException when user does not exist", async () => {
       (prisma.user.findUnique as jest.Mock).mockResolvedValue(null);
 
-      await expect(service.getProfile('unknown')).rejects.toThrow('User not found');
+      await expect(service.getProfile("unknown")).rejects.toThrow(
+        "User not found",
+      );
     });
   });
 
-  describe('updateProfile', () => {
-    it('updates only provided fields', async () => {
-      const updated = { ...mockUser, firstName: 'Ada' };
+  describe("updateProfile", () => {
+    it("updates only provided fields", async () => {
+      const updated = { ...mockUser, firstName: "Ada" };
       (prisma.user.update as jest.Mock).mockResolvedValue(updated);
 
-      const result = await service.updateProfile('user-1', { firstName: 'Ada' });
+      const result = await service.updateProfile("user-1", {
+        firstName: "Ada",
+      });
 
       expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: { firstName: 'Ada' },
+          data: { firstName: "Ada" },
         }),
       );
-      expect(result.firstName).toBe('Ada');
+      expect(result.firstName).toBe("Ada");
     });
 
-    it('does not include undefined fields in the update payload', async () => {
+    it("does not include undefined fields in the update payload", async () => {
       (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
 
-      await service.updateProfile('user-1', { firstName: 'Ada' });
+      await service.updateProfile("user-1", { firstName: "Ada" });
 
       const call = (prisma.user.update as jest.Mock).mock.calls[0]?.[0];
-      expect(call?.data).not.toHaveProperty('email');
-      expect(call?.data).not.toHaveProperty('lastName');
+      expect(call?.data).not.toHaveProperty("email");
+      expect(call?.data).not.toHaveProperty("lastName");
     });
 
-    it('normalizes phone to E.164 when provided', async () => {
+    it("normalizes phone to E.164 when provided", async () => {
       (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
 
-      await service.updateProfile('user-1', { phone: '08012345678' });
+      await service.updateProfile("user-1", { phone: "08012345678" });
 
       const call = (prisma.user.update as jest.Mock).mock.calls[0]?.[0];
-      expect(call?.data.phoneNumber).toBe('+2348012345678');
+      expect(call?.data.phoneNumber).toBe("+2348012345678");
     });
   });
 });

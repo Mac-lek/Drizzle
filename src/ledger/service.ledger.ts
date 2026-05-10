@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
-import { PrismaService } from '@prisma-client/prisma.service';
-import { generateId } from '@common/lib/utils/util.id';
+import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "@prisma-client/prisma.service";
+import { generateId } from "@common/lib/utils/util.id";
 
 export interface LedgerEntryInput {
   accountId: string;
   accountType: string;
-  direction: 'DEBIT' | 'CREDIT';
+  direction: "DEBIT" | "CREDIT";
   amountKobo: bigint;
   description: string;
   metadata?: Record<string, unknown>;
@@ -19,10 +19,13 @@ export class LedgerService {
 
   constructor(private readonly prisma: PrismaService) {}
 
-  async record(transactionId: string, entries: LedgerEntryInput[]): Promise<void> {
+  async record(
+    transactionId: string,
+    entries: LedgerEntryInput[],
+  ): Promise<void> {
     const creates = await Promise.all(
       entries.map(async (e) => ({
-        id: generateId('led'),
+        id: generateId("led"),
         transactionId,
         accountId: e.accountId,
         amountKobo: e.amountKobo,
@@ -39,8 +42,8 @@ export class LedgerService {
   async getBalance(accountId: string, accountType: string): Promise<bigint> {
     const accountTypeId = await this.resolveAccountTypeId(accountType);
     const [creditId, debitId] = await Promise.all([
-      this.resolveDirectionId('CREDIT'),
-      this.resolveDirectionId('DEBIT'),
+      this.resolveDirectionId("CREDIT"),
+      this.resolveDirectionId("DEBIT"),
     ]);
 
     const [credits, debits] = await Promise.all([
@@ -54,12 +57,17 @@ export class LedgerService {
       }),
     ]);
 
-    return (credits._sum.amountKobo ?? BigInt(0)) - (debits._sum.amountKobo ?? BigInt(0));
+    return (
+      (credits._sum.amountKobo ?? BigInt(0)) -
+      (debits._sum.amountKobo ?? BigInt(0))
+    );
   }
 
   private async resolveAccountTypeId(name: string): Promise<number> {
     if (!this.accountTypeIds.has(name)) {
-      const type = await this.prisma.accountType.findUniqueOrThrow({ where: { name } });
+      const type = await this.prisma.accountType.findUniqueOrThrow({
+        where: { name },
+      });
       this.accountTypeIds.set(name, type.id);
     }
     return this.accountTypeIds.get(name)!;
@@ -67,7 +75,9 @@ export class LedgerService {
 
   private async resolveDirectionId(name: string): Promise<number> {
     if (!this.directionIds.has(name)) {
-      const dir = await this.prisma.entryDirection.findUniqueOrThrow({ where: { name } });
+      const dir = await this.prisma.entryDirection.findUniqueOrThrow({
+        where: { name },
+      });
       this.directionIds.set(name, dir.id);
     }
     return this.directionIds.get(name)!;

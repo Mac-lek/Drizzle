@@ -1,9 +1,9 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
-import { InjectQueue } from '@nestjs/bullmq';
-import { Queue } from 'bullmq';
-import { DisbursementService } from './service.disbursement';
-import { DRIP_QUEUE } from './processor.disbursement';
+import { Injectable, Logger } from "@nestjs/common";
+import { Cron } from "@nestjs/schedule";
+import { InjectQueue } from "@nestjs/bullmq";
+import { Queue } from "bullmq";
+import { DisbursementService } from "./service.disbursement";
+import { DRIP_QUEUE } from "./processor.disbursement";
 
 @Injectable()
 export class DisbursementScheduler {
@@ -14,7 +14,7 @@ export class DisbursementScheduler {
     private readonly disbursements: DisbursementService,
   ) {}
 
-  @Cron('0 0 * * *')
+  @Cron("0 0 * * *")
   async enqueueDueVaults(): Promise<void> {
     const vaults = await this.disbursements.findDueVaults();
 
@@ -25,7 +25,7 @@ export class DisbursementScheduler {
     for (const vault of vaults) {
       const dripNumber = vault.tranchesSent + 1;
       await this.queue.add(
-        'process-drip',
+        "process-drip",
         { vaultId: vault.id },
         {
           // Stable job ID prevents duplicates if the cron fires before the job completes
@@ -33,7 +33,7 @@ export class DisbursementScheduler {
           removeOnComplete: true,
           removeOnFail: { count: 100 },
           attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
+          backoff: { type: "exponential", delay: 5000 },
         },
       );
     }

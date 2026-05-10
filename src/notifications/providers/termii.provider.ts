@@ -1,7 +1,11 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom } from 'rxjs';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { HttpService } from "@nestjs/axios";
+import { firstValueFrom } from "rxjs";
 
 @Injectable()
 export class TermiiProvider {
@@ -14,14 +18,14 @@ export class TermiiProvider {
     private readonly http: HttpService,
     private readonly config: ConfigService,
   ) {
-    this.baseUrl = this.config.get<string>('TERMII_BASE_URL')!;
-    this.apiKey = this.config.get<string>('TERMII_API_KEY')!;
-    this.senderId = this.config.get<string>('TERMII_SENDER_ID')!;
+    this.baseUrl = this.config.get<string>("TERMII_BASE_URL")!;
+    this.apiKey = this.config.get<string>("TERMII_API_KEY")!;
+    this.senderId = this.config.get<string>("TERMII_SENDER_ID")!;
   }
 
   async sendSms(to: string, message: string): Promise<void> {
     // Strip leading + for Termii (accepts 2348xxxxxxxx)
-    const recipient = to.replace(/^\+/, '');
+    const recipient = to.replace(/^\+/, "");
 
     try {
       await firstValueFrom(
@@ -29,14 +33,14 @@ export class TermiiProvider {
           to: recipient,
           from: this.senderId,
           sms: message,
-          type: 'plain',
-          channel: 'dnd',
+          type: "plain",
+          channel: "dnd",
           api_key: this.apiKey,
         }),
       );
     } catch (err) {
-      this.logger.error({ err, to }, 'Termii SMS delivery failed');
-      throw new InternalServerErrorException('Failed to send SMS');
+      this.logger.error({ err, to }, "Termii SMS delivery failed");
+      throw new InternalServerErrorException("Failed to send SMS");
     }
   }
 }

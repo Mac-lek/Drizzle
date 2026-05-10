@@ -1,4 +1,4 @@
-import { randomUUID } from 'crypto';
+import { randomUUID } from "crypto";
 
 export function generateId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;

@@ -1,7 +1,7 @@
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { createHmac } from 'crypto';
-import axios, { AxiosInstance } from 'axios';
+import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
+import { createHmac } from "crypto";
+import axios, { AxiosInstance } from "axios";
 
 export interface PaystackTransactionInit {
   authorization_url: string;
@@ -38,12 +38,12 @@ export class PaystackProvider {
   private readonly secretKey: string;
 
   constructor(private readonly config: ConfigService) {
-    this.secretKey = config.get<string>('PAYSTACK_SECRET_KEY')!;
+    this.secretKey = config.get<string>("PAYSTACK_SECRET_KEY")!;
     this.http = axios.create({
-      baseURL: 'https://api.paystack.co',
+      baseURL: "https://api.paystack.co",
       headers: {
         Authorization: `Bearer ${this.secretKey}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
   }
@@ -55,12 +55,16 @@ export class PaystackProvider {
     metadata?: Record<string, unknown>;
     callback_url?: string;
   }): Promise<PaystackTransactionInit> {
-    const { data } = await this.http.post('/transaction/initialize', params);
+    const { data } = await this.http.post("/transaction/initialize", params);
     return data.data as PaystackTransactionInit;
   }
 
-  async verifyTransaction(reference: string): Promise<PaystackTransactionVerify> {
-    const { data } = await this.http.get(`/transaction/verify/${encodeURIComponent(reference)}`);
+  async verifyTransaction(
+    reference: string,
+  ): Promise<PaystackTransactionVerify> {
+    const { data } = await this.http.get(
+      `/transaction/verify/${encodeURIComponent(reference)}`,
+    );
     return data.data as PaystackTransactionVerify;
   }
 
@@ -70,7 +74,7 @@ export class PaystackProvider {
     lastName?: string;
     phone?: string;
   }): Promise<PaystackCustomer> {
-    const { data } = await this.http.post('/customer', {
+    const { data } = await this.http.post("/customer", {
       email: params.email,
       first_name: params.firstName,
       last_name: params.lastName,
@@ -83,7 +87,7 @@ export class PaystackProvider {
     customerCode: string,
     preferredBank: string,
   ): Promise<PaystackDedicatedAccount> {
-    const { data } = await this.http.post('/dedicated_account', {
+    const { data } = await this.http.post("/dedicated_account", {
       customer: customerCode,
       preferred_bank: preferredBank,
     });
@@ -91,7 +95,9 @@ export class PaystackProvider {
   }
 
   verifySignature(rawBody: Buffer, signature: string): boolean {
-    const hash = createHmac('sha512', this.secretKey).update(rawBody).digest('hex');
+    const hash = createHmac("sha512", this.secretKey)
+      .update(rawBody)
+      .digest("hex");
     return hash === signature;
   }
 }

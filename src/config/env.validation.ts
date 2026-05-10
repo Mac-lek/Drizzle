@@ -1,12 +1,12 @@
-import * as Joi from 'joi';
+import * as Joi from "joi";
 
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string()
-    .valid('development', 'staging', 'production', 'test')
-    .default('development'),
+    .valid("development", "staging", "production", "test")
+    .default("development"),
   PORT: Joi.number().default(3000),
   APP_URL: Joi.string().uri().required(),
-  PROCESS_TYPE: Joi.string().valid('web', 'worker').default('web'),
+  PROCESS_TYPE: Joi.string().valid("web", "worker").default("web"),
 
   DATABASE_URL: Joi.string().required(),
   DIRECT_URL: Joi.string().required(),
@@ -14,28 +14,30 @@ export const envValidationSchema = Joi.object({
   REDIS_URL: Joi.string().required(),
 
   JWT_ACCESS_SECRET: Joi.string().required(),
-  JWT_ACCESS_TTL: Joi.string().default('15m'),
+  JWT_ACCESS_TTL: Joi.string().default("15m"),
   JWT_REFRESH_SECRET: Joi.string().required(),
-  JWT_REFRESH_TTL: Joi.string().default('30d'),
+  JWT_REFRESH_TTL: Joi.string().default("30d"),
 
   PAYSTACK_SECRET_KEY: Joi.string().required(),
   PAYSTACK_PUBLIC_KEY: Joi.string().required(),
   PAYSTACK_WEBHOOK_URL: Joi.string().uri().required(),
-  PAYSTACK_PREFERRED_BANK: Joi.string().default('wema-bank'),
+  PAYSTACK_PREFERRED_BANK: Joi.string().default("wema-bank"),
 
   DOJAH_APP_ID: Joi.string().required(),
   DOJAH_PUBLIC_KEY: Joi.string().required(),
   DOJAH_SECRET_KEY: Joi.string().required(),
-  DOJAH_BASE_URL: Joi.string().uri().default('https://api.dojah.io'),
+  DOJAH_BASE_URL: Joi.string().uri().default("https://api.dojah.io"),
 
   SMILE_PARTNER_ID: Joi.string().required(),
   SMILE_API_KEY: Joi.string().required(),
   SMILE_CALLBACK_URL: Joi.string().uri().required(),
-  SMILE_BASE_URL: Joi.string().uri().default('https://testapi.smileidentity.com'),
+  SMILE_BASE_URL: Joi.string()
+    .uri()
+    .default("https://testapi.smileidentity.com"),
 
   TERMII_API_KEY: Joi.string().required(),
-  TERMII_SENDER_ID: Joi.string().default('Drizzle'),
-  TERMII_BASE_URL: Joi.string().uri().default('https://api.ng.termii.com'),
+  TERMII_SENDER_ID: Joi.string().default("Drizzle"),
+  TERMII_BASE_URL: Joi.string().uri().default("https://api.ng.termii.com"),
 
   MAIL_HOST: Joi.string().required(),
   MAIL_PORT: Joi.number().default(587),
@@ -48,9 +50,9 @@ export const envValidationSchema = Joi.object({
   X_API_KEY: Joi.string().min(32).required(),
 
   ADMIN_JWT_ACCESS_SECRET: Joi.string().required(),
-  ADMIN_JWT_ACCESS_TTL: Joi.string().default('15m'),
+  ADMIN_JWT_ACCESS_TTL: Joi.string().default("15m"),
   ADMIN_JWT_REFRESH_SECRET: Joi.string().required(),
-  ADMIN_JWT_REFRESH_TTL: Joi.string().default('30d'),
+  ADMIN_JWT_REFRESH_TTL: Joi.string().default("30d"),
 
   SENTRY_DSN: Joi.string().uri().optional(),
 

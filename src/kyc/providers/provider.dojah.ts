@@ -1,7 +1,11 @@
-import { Injectable, Logger, UnprocessableEntityException } from '@nestjs/common';
-import { HttpService } from '@nestjs/axios';
-import { ConfigService } from '@nestjs/config';
-import { firstValueFrom } from 'rxjs';
+import {
+  Injectable,
+  Logger,
+  UnprocessableEntityException,
+} from "@nestjs/common";
+import { HttpService } from "@nestjs/axios";
+import { ConfigService } from "@nestjs/config";
+import { firstValueFrom } from "rxjs";
 
 export interface DojahBvnResult {
   firstName: string;
@@ -20,9 +24,9 @@ export class DojahProvider {
   ) {}
 
   async verifyBvn(bvn: string): Promise<DojahBvnResult> {
-    const baseUrl = this.config.getOrThrow<string>('DOJAH_BASE_URL');
-    const appId = this.config.getOrThrow<string>('DOJAH_APP_ID');
-    const secretKey = this.config.getOrThrow<string>('DOJAH_SECRET_KEY');
+    const baseUrl = this.config.getOrThrow<string>("DOJAH_BASE_URL");
+    const appId = this.config.getOrThrow<string>("DOJAH_APP_ID");
+    const secretKey = this.config.getOrThrow<string>("DOJAH_SECRET_KEY");
 
     try {
       const response = await firstValueFrom(
@@ -33,19 +37,19 @@ export class DojahProvider {
       );
 
       const entity = response.data?.entity;
-      if (!entity) throw new UnprocessableEntityException('BVN not found');
+      if (!entity) throw new UnprocessableEntityException("BVN not found");
 
       return {
-        firstName: entity.first_name ?? '',
-        lastName: entity.last_name ?? '',
-        dateOfBirth: entity.date_of_birth ?? '',
-        phoneNumber: entity.phone_number1 ?? '',
+        firstName: entity.first_name ?? "",
+        lastName: entity.last_name ?? "",
+        dateOfBirth: entity.date_of_birth ?? "",
+        phoneNumber: entity.phone_number1 ?? "",
       };
     } catch (error: any) {
       if (error?.response?.status === 404 || error?.response?.data?.error) {
-        throw new UnprocessableEntityException('BVN could not be verified');
+        throw new UnprocessableEntityException("BVN could not be verified");
       }
-      this.logger.error({ bvn: '***', error }, 'Dojah BVN lookup failed');
+      this.logger.error({ bvn: "***", error }, "Dojah BVN lookup failed");
       throw error;
     }
   }
