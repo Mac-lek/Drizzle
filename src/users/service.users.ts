@@ -1,9 +1,9 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { User } from '@prisma/client';
-import { PrismaService } from '@prisma-client/prisma.service';
-import { normalizeNigerianPhone } from '@common/lib/utils/util.phone';
-import { generateId } from '@common/lib/utils/util.id';
-import { UpdateProfileDto } from './lib/dto/dto.users.update-profile';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { User } from "@prisma/client";
+import { PrismaService } from "@prisma-client/prisma.service";
+import { normalizeNigerianPhone } from "@common/lib/utils/util.phone";
+import { generateId } from "@common/lib/utils/util.id";
+import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
 
 export interface UserProfile {
   id: string;
@@ -47,18 +47,18 @@ export class UsersService {
     if (existing) return { user: existing, created: false };
 
     const [kycStatus, userStatus] = await Promise.all([
-      this.prisma.kycStatus.findUniqueOrThrow({ where: { name: 'NONE' } }),
-      this.prisma.userStatus.findUniqueOrThrow({ where: { name: 'ACTIVE' } }),
+      this.prisma.kycStatus.findUniqueOrThrow({ where: { name: "NONE" } }),
+      this.prisma.userStatus.findUniqueOrThrow({ where: { name: "ACTIVE" } }),
     ]);
 
     const user = await this.prisma.user.create({
       data: {
-        id: generateId('usr'),
+        id: generateId("usr"),
         ...(phoneNumber && { phoneNumber }),
         ...(email && { email }),
         kycStatusId: kycStatus.id,
         statusId: userStatus.id,
-        wallet: { create: { id: generateId('wlt') } },
+        wallet: { create: { id: generateId("wlt") } },
       },
     });
 
@@ -73,7 +73,7 @@ export class UsersService {
         status: { select: { name: true } },
       },
     });
-    if (!user) throw new NotFoundException('User not found');
+    if (!user) throw new NotFoundException("User not found");
 
     return {
       id: user.id,
@@ -84,7 +84,12 @@ export class UsersService {
       bvnVerified: user.bvnVerified,
       kycStatus: user.kycStatus.name,
       status: user.status.name,
-      profileComplete: !!(user.firstName && user.lastName && user.email && user.phoneNumber),
+      profileComplete: !!(
+        user.firstName &&
+        user.lastName &&
+        user.email &&
+        user.phoneNumber
+      ),
       createdAt: user.createdAt,
     };
   }
@@ -100,7 +105,9 @@ export class UsersService {
         ...(dto.firstName !== undefined && { firstName: dto.firstName }),
         ...(dto.lastName !== undefined && { lastName: dto.lastName }),
         ...(dto.email !== undefined && { email: dto.email }),
-        ...(dto.phone !== undefined && { phoneNumber: normalizeNigerianPhone(dto.phone) }),
+        ...(dto.phone !== undefined && {
+          phoneNumber: normalizeNigerianPhone(dto.phone),
+        }),
         ...(dto.fcmToken !== undefined && { fcmToken: dto.fcmToken }),
       },
     });

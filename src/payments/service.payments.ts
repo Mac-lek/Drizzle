@@ -1,12 +1,17 @@
-import { BadRequestException, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
-import { randomUUID } from 'crypto';
-import { ConfigService } from '@nestjs/config';
-import { generateId } from '@common/lib/utils/util.id';
-import { PrismaService } from '@prisma-client/prisma.service';
-import { UsersService } from '@users/service.users';
-import { WalletService } from '@wallet/service.wallet';
-import { PaystackProvider } from './providers/paystack.provider';
-import { FundDto } from './lib/dto/dto.payments.fund';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from "@nestjs/common";
+import { randomUUID } from "crypto";
+import { ConfigService } from "@nestjs/config";
+import { generateId } from "@common/lib/utils/util.id";
+import { PrismaService } from "@prisma-client/prisma.service";
+import { UsersService } from "@users/service.users";
+import { WalletService } from "@wallet/service.wallet";
+import { PaystackProvider } from "./providers/paystack.provider";
+import { FundDto } from "./lib/dto/dto.payments.fund";
 
 @Injectable()
 export class PaymentsService {
@@ -26,7 +31,9 @@ export class PaymentsService {
   ): Promise<{ authorizationUrl: string; reference: string }> {
     const user = await this.users.findById(userId);
     if (!user!.email) {
-      throw new BadRequestException('Please complete your profile before funding your wallet.');
+      throw new BadRequestException(
+        "Please complete your profile before funding your wallet.",
+      );
     }
 
     const wallet = await this.wallets.findByUserId(userId);
@@ -47,7 +54,9 @@ export class PaymentsService {
   async setupWalletCustomer(userId: string): Promise<void> {
     const user = await this.users.findById(userId);
     if (!user?.email) {
-      throw new BadRequestException('Please complete your profile before setting up payments.');
+      throw new BadRequestException(
+        "Please complete your profile before setting up payments.",
+      );
     }
 
     const wallet = await this.wallets.findByUserId(userId);
@@ -61,7 +70,10 @@ export class PaymentsService {
       phone: user.phoneNumber ?? undefined,
     });
 
-    const preferredBank = this.config.get<string>('PAYSTACK_PREFERRED_BANK', 'wema-bank');
+    const preferredBank = this.config.get<string>(
+      "PAYSTACK_PREFERRED_BANK",
+      "wema-bank",
+    );
     const dva = await this.paystack.createDedicatedVirtualAccount(
       customer.customer_code,
       preferredBank,
@@ -79,7 +91,7 @@ export class PaymentsService {
 
   async handleWebhook(rawBody: Buffer, signature: string): Promise<void> {
     if (!this.paystack.verifySignature(rawBody, signature)) {
-      throw new UnauthorizedException('Invalid webhook signature');
+      throw new UnauthorizedException("Invalid webhook signature");
     }
 
     const payload = JSON.parse(rawBody.toString()) as {
@@ -96,14 +108,16 @@ export class PaymentsService {
     const { event, data } = payload;
     const eventId = data.reference;
 
-    const existing = await this.prisma.webhookEvent.findUnique({ where: { eventId } });
+    const existing = await this.prisma.webhookEvent.findUnique({
+      where: { eventId },
+    });
     if (existing?.processed) return;
 
     await this.prisma.webhookEvent.upsert({
       where: { eventId },
       create: {
-        id: generateId('evt'),
-        provider: 'paystack',
+        id: generateId("evt"),
+        provider: "paystack",
         eventId,
         eventType: event,
         payload: payload as object,
@@ -111,10 +125,13 @@ export class PaymentsService {
       update: {},
     });
 
-    if (event === 'charge.success' && data.status === 'success') {
+    if (event === "charge.success" && data.status === "success") {
       const { userId, walletId } = data.metadata ?? {};
       if (!userId || !walletId) {
-        this.logger.warn({ eventId }, 'charge.success missing metadata — skipping credit');
+        this.logger.warn(
+          { eventId },
+          "charge.success missing metadata — skipping credit",
+        );
         return;
       }
 
@@ -122,7 +139,7 @@ export class PaymentsService {
         walletId,
         BigInt(data.amount),
         eventId,
-        'Wallet funding via Paystack',
+        "Wallet funding via Paystack",
         { paystackReference: eventId, channel: data.channel },
       );
 

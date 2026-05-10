@@ -1,9 +1,15 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiProperty, ApiPropertyOptional, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { User } from '@prisma/client';
-import { CurrentUser } from '@common/decorators/current-user.decorator';
-import { UsersService } from './service.users';
-import { UpdateProfileDto } from './lib/dto/dto.users.update-profile';
+import { Body, Controller, Get, Patch } from "@nestjs/common";
+import {
+  ApiBearerAuth,
+  ApiOperation,
+  ApiProperty,
+  ApiResponse,
+  ApiTags,
+} from "@nestjs/swagger";
+import { User } from "@prisma/client";
+import { CurrentUser } from "@common/decorators/current-user.decorator";
+import { UsersService } from "./service.users";
+import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
 
 class ProfileResponse {
   @ApiProperty() id: string;
@@ -14,26 +20,28 @@ class ProfileResponse {
   @ApiProperty() bvnVerified: boolean;
   @ApiProperty() kycStatus: string;
   @ApiProperty() status: string;
-  @ApiProperty({ description: 'true when firstName, lastName and email are all set' })
+  @ApiProperty({
+    description: "true when firstName, lastName and email are all set",
+  })
   profileComplete: boolean;
   @ApiProperty() createdAt: Date;
 }
 
-@ApiTags('Users')
+@ApiTags("Users")
 @ApiBearerAuth()
-@Controller('users')
+@Controller("users")
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
-  @Get('me')
-  @ApiOperation({ summary: 'Get my profile' })
+  @Get("me")
+  @ApiOperation({ summary: "Get my profile" })
   @ApiResponse({ status: 200, type: ProfileResponse })
   async getMe(@CurrentUser() user: User): Promise<ProfileResponse> {
     return this.users.getProfile(user.id);
   }
 
-  @Patch('me')
-  @ApiOperation({ summary: 'Update my profile' })
+  @Patch("me")
+  @ApiOperation({ summary: "Update my profile" })
   @ApiResponse({ status: 200, type: ProfileResponse })
   async updateMe(
     @CurrentUser() user: User,

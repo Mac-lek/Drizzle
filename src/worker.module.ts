@@ -1,18 +1,18 @@
-import { Module } from '@nestjs/common';
-import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bullmq';
-import { ScheduleModule } from '@nestjs/schedule';
-import { LoggerModule } from 'nestjs-pino';
-import IORedis from 'ioredis';
-import { AppConfigModule } from './config/config.module';
-import { PrismaModule } from './prisma/prisma.module';
-import { NotificationsModule } from './notifications/notifications.module';
-import { DisbursementModule } from './disbursement/disbursement.module';
+import { Module } from "@nestjs/common";
+import { ConfigModule, ConfigService } from "@nestjs/config";
+import { BullModule } from "@nestjs/bullmq";
+import { ScheduleModule } from "@nestjs/schedule";
+import { LoggerModule } from "nestjs-pino";
+import IORedis from "ioredis";
+import { AppConfigModule } from "./config/config.module";
+import { PrismaModule } from "./prisma/prisma.module";
+import { NotificationsModule } from "./notifications/notifications.module";
+import { DisbursementModule } from "./disbursement/disbursement.module";
 
 @Module({
   imports: [
     LoggerModule.forRoot({
-      pinoHttp: { level: 'info' },
+      pinoHttp: { level: "info" },
     }),
     AppConfigModule,
     PrismaModule,
@@ -21,7 +21,7 @@ import { DisbursementModule } from './disbursement/disbursement.module';
     BullModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (config: ConfigService) => ({
-        connection: new IORedis(config.get<string>('REDIS_URL')!, {
+        connection: new IORedis(config.get<string>("REDIS_URL")!, {
           maxRetriesPerRequest: null,
         }),
       }),
@@ -30,4 +30,4 @@ import { DisbursementModule } from './disbursement/disbursement.module';
     DisbursementModule,
   ],
 })
-export class WorkerModule { }
+export class WorkerModule {}

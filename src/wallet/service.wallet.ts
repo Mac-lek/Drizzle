@@ -1,7 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { Wallet } from '@prisma/client';
-import { PrismaService } from '@prisma-client/prisma.service';
-import { LedgerService } from '@ledger/service.ledger';
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { Wallet } from "@prisma/client";
+import { PrismaService } from "@prisma-client/prisma.service";
+import { LedgerService } from "@ledger/service.ledger";
 
 @Injectable()
 export class WalletService {
@@ -12,12 +12,12 @@ export class WalletService {
 
   async findByUserId(userId: string): Promise<Wallet> {
     const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) throw new NotFoundException('Wallet not found');
+    if (!wallet) throw new NotFoundException("Wallet not found");
     return wallet;
   }
 
   async getBalance(walletId: string): Promise<bigint> {
-    return this.ledger.getBalance(walletId, 'USER_WALLET');
+    return this.ledger.getBalance(walletId, "USER_WALLET");
   }
 
   async credit(
@@ -30,8 +30,8 @@ export class WalletService {
     await this.ledger.record(transactionId, [
       {
         accountId: walletId,
-        accountType: 'USER_WALLET',
-        direction: 'CREDIT',
+        accountType: "USER_WALLET",
+        direction: "CREDIT",
         amountKobo,
         description,
         metadata,
@@ -49,8 +49,8 @@ export class WalletService {
     await this.ledger.record(transactionId, [
       {
         accountId: walletId,
-        accountType: 'USER_WALLET',
-        direction: 'DEBIT',
+        accountType: "USER_WALLET",
+        direction: "DEBIT",
         amountKobo,
         description,
         metadata,

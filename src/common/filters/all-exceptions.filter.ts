@@ -4,9 +4,9 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-} from '@nestjs/common';
-import { Response } from 'express';
-import { SERVER_ERROR } from '../lib/enums/lib.enum.messages';
+} from "@nestjs/common";
+import { Response } from "express";
+import { SERVER_ERROR } from "../lib/enums/lib.enum.messages";
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -21,7 +21,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
 
     const message =
       exception instanceof HttpException
-        ? (exception.getResponse() as { message?: string })?.message ?? exception.message
+        ? ((exception.getResponse() as { message?: string })?.message ??
+          exception.message)
         : SERVER_ERROR;
 
     response.status(status).json({
