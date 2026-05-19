@@ -74,13 +74,15 @@ export class AdminService {
       },
     });
 
-    await this.email.sendEmail(
-      dto.email,
-      "You have been invited to Drizzle Admin",
-      `You have been invited as a <b>${role.name}</b>.<br><br>` +
-        `Use this token to accept your invite: <b>${rawToken}</b><br>` +
-        `Expires in ${INVITE_TTL_HOURS} hours.`,
-    );
+    this.email
+      .sendEmail(
+        dto.email,
+        "You have been invited to Drizzle Admin",
+        `You have been invited as a <b>${role.name}</b>.<br><br>` +
+          `Use this token to accept your invite: <b>${rawToken}</b><br>` +
+          `Expires in ${INVITE_TTL_HOURS} hours.`,
+      )
+      .catch((err) => this.logger.error(err, `Failed to send invite email to ${dto.email}`));
 
     await this.log(
       inviterId,

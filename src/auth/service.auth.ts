@@ -52,9 +52,9 @@ export class AuthService {
       await this.storeOtp(user.id, otp);
 
       if (phone) {
-        await this.notifications.sendPhoneOtp(phone, otp);
+        this.notifications.sendPhoneOtp(phone, otp);
       } else {
-        await this.notifications.sendEmailOtp(dto.email!, otp);
+        this.notifications.sendEmailOtp(dto.email!, otp);
       }
     }
 
@@ -192,7 +192,7 @@ export class AuthService {
       if (user.phoneNumber) {
         await this.notifications.sendPhoneOtp(user.phoneNumber, otp);
       } else {
-        await this.notifications.sendEmailOtp(user.email!, otp);
+        this.notifications.sendEmailOtp(user.email!, otp);
       }
     }
 
