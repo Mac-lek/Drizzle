@@ -55,10 +55,8 @@ async function main() {
   await prisma.kycStatus.createMany({
     data: [
       { name: 'NONE', label: 'Not Started' },
-      { name: 'TIER_1_PENDING', label: 'Tier 1 Pending' },
-      { name: 'TIER_1_VERIFIED', label: 'Tier 1 Verified' },
-      { name: 'TIER_2_PENDING', label: 'Tier 2 Pending' },
-      { name: 'TIER_2_VERIFIED', label: 'Tier 2 Verified' },
+      { name: 'PENDING', label: 'Pending' },
+      { name: 'VERIFIED', label: 'Verified' },
       { name: 'FAILED', label: 'Failed' },
     ],
     skipDuplicates: true,

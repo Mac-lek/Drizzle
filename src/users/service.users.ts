@@ -1,9 +1,18 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { User } from "@prisma/client";
 import { PrismaService } from "@prisma-client/prisma.service";
 import { normalizeNigerianPhone } from "@common/lib/utils/util.phone";
 import { generateId } from "@common/lib/utils/util.id";
 import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
+import { SubmitBvnDto } from "./lib/dto/dto.users.submit-bvn";
+import { DojahProvider } from "../kyc/providers/provider.dojah";
+import { encryptBvn } from "../kyc/lib/util.bvn-encrypt";
 
 export interface UserProfile {
   id: string;
@@ -20,7 +29,11 @@ export interface UserProfile {
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly dojah: DojahProvider,
+    private readonly config: ConfigService,
+  ) {}
 
   findById(id: string): Promise<User | null> {
     return this.prisma.user.findUnique({ where: { id } });
@@ -88,7 +101,8 @@ export class UsersService {
         user.firstName &&
         user.lastName &&
         user.email &&
-        user.phoneNumber
+        user.phoneNumber &&
+        user.bvnVerified
       ),
       createdAt: user.createdAt,
     };
@@ -111,5 +125,45 @@ export class UsersService {
         ...(dto.fcmToken !== undefined && { fcmToken: dto.fcmToken }),
       },
     });
+  }
+
+  async submitBvn(userId: string, dto: SubmitBvnDto): Promise<void> {
+    const user = await this.prisma.user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { bvnVerified: true, firstName: true, lastName: true },
+    });
+
+    if (user.bvnVerified) {
+      throw new ConflictException("BVN already verified");
+    }
+
+    if (!user.firstName || !user.lastName) {
+      throw new BadRequestException(
+        "Complete your profile (first and last name) before submitting BVN",
+      );
+    }
+
+    const encryptionKey = this.config.getOrThrow<string>("BVN_ENCRYPTION_KEY");
+    const bvnData = await this.dojah.verifyBvn(dto.bvn);
+
+    if (
+      !this.nameMatches(user.firstName, bvnData.firstName) ||
+      !this.nameMatches(user.lastName, bvnData.lastName)
+    ) {
+      throw new BadRequestException("Name on BVN does not match your profile");
+    }
+
+    const bvnEncrypted = encryptBvn(dto.bvn, encryptionKey);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { bvnEncrypted, bvnVerified: true },
+    });
+  }
+
+  private nameMatches(profileName: string, dojahName: string): boolean {
+    const norm = (s: string) => s.trim().toUpperCase();
+    const target = norm(profileName);
+    return dojahName.split(/\s+/).map(norm).includes(target);
   }
 }
