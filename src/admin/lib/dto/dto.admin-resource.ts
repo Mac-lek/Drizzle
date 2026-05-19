@@ -13,8 +13,8 @@ export class AdminUserActionDto {
 }
 
 export class AdminKycOverrideDto {
-  @ApiProperty({ example: 'TIER_1_VERIFIED', enum: ['TIER_1_VERIFIED', 'TIER_2_VERIFIED', 'FAILED'] })
-  @IsIn(['TIER_1_VERIFIED', 'TIER_2_VERIFIED', 'FAILED'])
+  @ApiProperty({ example: 'VERIFIED', enum: ['VERIFIED', 'FAILED'] })
+  @IsIn(['VERIFIED', 'FAILED'])
   kycStatus: string;
 
   @ApiPropertyOptional()

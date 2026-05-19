@@ -11,20 +11,19 @@ import {
   ApiOperation,
   ApiProperty,
   ApiResponse,
+  ApiSecurity,
   ApiTags,
 } from "@nestjs/swagger";
 import { User } from "@prisma/client";
 import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { Public } from "@common/decorators/public.decorator";
 import { KycService, SmileWebhookBody } from "./service.kyc";
-import { SubmitBvnDto } from "./lib/dto/dto.kyc.tier1";
 
 class KycStatusResponse {
-  @ApiProperty({ example: "TIER_1_VERIFIED" }) kycStatus: string;
-  @ApiProperty() bvnVerified: boolean;
+  @ApiProperty({ example: "NONE" }) kycStatus: string;
 }
 
-class Tier2InitResponse {
+class KycInitiateResponse {
   @ApiProperty({ example: "https://links.usesmileid.com/..." }) url: string;
 }
 
@@ -41,39 +40,23 @@ export class KycController {
     return this.kyc.getStatus(user.id);
   }
 
-  @Post("tier-1")
+  @Post("initiate")
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
-    summary: "Submit BVN for Tier 1 verification",
-    description:
-      "Verifies the BVN against Dojah. Profile (first name + last name) must be complete first. " +
-      "Can be retried if a previous attempt failed.",
-  })
-  @ApiResponse({ status: 200, type: KycStatusResponse })
-  async submitTier1(
-    @CurrentUser() user: User,
-    @Body() dto: SubmitBvnDto,
-  ): Promise<KycStatusResponse> {
-    await this.kyc.submitTier1(user.id, dto);
-    return this.kyc.getStatus(user.id);
-  }
-
-  @Post("tier-2")
-  @HttpCode(HttpStatus.OK)
-  @ApiOperation({
-    summary: "Initiate Tier 2 verification",
+    summary: "Initiate biometric KYC verification",
     description:
       "Creates a Smile Identity hosted verification session. Returns a URL for the user to complete " +
-      "selfie + document verification. Tier 1 must be completed first.",
+      "selfie + document verification. BVN must be verified first.",
   })
-  @ApiResponse({ status: 200, type: Tier2InitResponse })
-  initiateTier2(@CurrentUser() user: User): Promise<Tier2InitResponse> {
-    return this.kyc.initiateTier2(user.id);
+  @ApiResponse({ status: 200, type: KycInitiateResponse })
+  initiate(@CurrentUser() user: User): Promise<KycInitiateResponse> {
+    return this.kyc.initiate(user.id);
   }
 
   @Public()
-  @Post("tier-2/webhook")
+  @Post("webhook")
   @HttpCode(HttpStatus.OK)
+  @ApiSecurity("x-api-key")
   @ApiOperation({ summary: "Smile Identity webhook receiver (internal)" })
   async smileWebhook(
     @Body() body: SmileWebhookBody,

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Patch } from "@nestjs/common";
+import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post } from "@nestjs/common";
 import {
   ApiBearerAuth,
   ApiOperation,
@@ -10,6 +10,7 @@ import { User } from "@prisma/client";
 import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { UsersService } from "./service.users";
 import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
+import { SubmitBvnDto } from "./lib/dto/dto.users.submit-bvn";
 
 class ProfileResponse {
   @ApiProperty() id: string;
@@ -21,7 +22,7 @@ class ProfileResponse {
   @ApiProperty() kycStatus: string;
   @ApiProperty() status: string;
   @ApiProperty({
-    description: "true when firstName, lastName and email are all set",
+    description: "true when firstName, lastName, email, phoneNumber and bvnVerified are all set",
   })
   profileComplete: boolean;
   @ApiProperty() createdAt: Date;
@@ -48,6 +49,23 @@ export class UsersController {
     @Body() dto: UpdateProfileDto,
   ): Promise<ProfileResponse> {
     await this.users.updateProfile(user.id, dto);
+    return this.users.getProfile(user.id);
+  }
+
+  @Post("me/bvn")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Submit and verify BVN",
+    description:
+      "Verifies the BVN against Dojah and stores it encrypted. " +
+      "First and last name must be set. Can be retried if Dojah is temporarily unavailable.",
+  })
+  @ApiResponse({ status: 200, type: ProfileResponse })
+  async submitBvn(
+    @CurrentUser() user: User,
+    @Body() dto: SubmitBvnDto,
+  ): Promise<ProfileResponse> {
+    await this.users.submitBvn(user.id, dto);
     return this.users.getProfile(user.id);
   }
 }

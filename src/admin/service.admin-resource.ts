@@ -65,7 +65,7 @@ export class AdminResourceService {
 
   async listKycPending() {
     return this.prisma.user.findMany({
-      where: { kycStatus: { name: { in: ['TIER_1_PENDING', 'TIER_2_PENDING'] } } },
+      where: { kycStatus: { name: 'PENDING' } },
       select: {
         id: true,
         phoneNumber: true,
