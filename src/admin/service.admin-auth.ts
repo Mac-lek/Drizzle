@@ -80,11 +80,13 @@ export class AdminAuthService {
       },
     });
 
-    await this.email.sendEmail(
-      admin.email,
-      "Drizzle Admin — Your login OTP",
-      `Your OTP is <b>${otp}</b>. Valid for ${OTP_TTL_MINUTES} minutes. Do not share.`,
-    );
+    this.email
+      .sendEmail(
+        admin.email,
+        "Drizzle Admin — Your login OTP",
+        `Your OTP is <b>${otp}</b>. Valid for ${OTP_TTL_MINUTES} minutes. Do not share.`,
+      )
+      .catch((err) => this.logger.error(err, `Failed to send OTP email to ${admin.email}`));
 
     return { message: "OTP sent to your email" };
   }

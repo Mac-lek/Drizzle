@@ -29,4 +29,7 @@ firebase-service-account.json
 
 # Coverage
 coverage/
+
+# Postman
+*.postman_collection.json
 CLAUDE.md
