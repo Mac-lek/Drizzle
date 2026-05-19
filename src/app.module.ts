@@ -34,6 +34,37 @@ import { HealthModule } from "./health/health.module";
             .NODE_ENV !== "production"
             ? { target: "pino-pretty", options: { colorize: true } }
             : undefined,
+        redact: {
+          paths: [
+            "req.headers.authorization",
+            "req.headers.cookie",
+            "req.headers['x-api-key']",
+            "req.headers['user-agent']",
+            "req.headers['sec-ch-ua']",
+            "req.headers['sec-ch-ua-mobile']",
+            "req.headers['sec-ch-ua-platform']",
+            "req.headers['sec-fetch-site']",
+            "req.headers['sec-fetch-mode']",
+            "req.headers['sec-fetch-dest']",
+            "req.headers['accept-encoding']",
+            "req.headers['accept-language']",
+            "req.headers.referer",
+            "req.headers.origin",
+          ],
+          censor: "[redacted]",
+        },
+        serializers: {
+          req(req) {
+            return {
+              method: req.method,
+              url: req.url,
+              remoteAddress: req.remoteAddress,
+            };
+          },
+          res(res) {
+            return { statusCode: res.statusCode };
+          },
+        },
       },
     }),
     AppConfigModule,
