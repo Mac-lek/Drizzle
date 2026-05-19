@@ -39,10 +39,7 @@ export const envValidationSchema = Joi.object({
   TERMII_SENDER_ID: Joi.string().default("Drizzle"),
   TERMII_BASE_URL: Joi.string().uri().default("https://api.ng.termii.com"),
 
-  MAIL_HOST: Joi.string().required(),
-  MAIL_PORT: Joi.number().default(587),
-  MAIL_USER: Joi.string().required(),
-  MAIL_PASS: Joi.string().required(),
+  RESEND_API_KEY: Joi.string().required(),
   MAIL_FROM: Joi.string().email().required(),
 
   FCM_SERVICE_ACCOUNT_JSON: Joi.string().required(),
