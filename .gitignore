@@ -33,3 +33,4 @@ coverage/
 # Postman
 *.postman_collection.json
 CLAUDE.md
+*.tsbuildinfo
