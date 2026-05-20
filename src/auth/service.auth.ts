@@ -43,9 +43,12 @@ export class AuthService {
 
   // ─── Signup ───────────────────────────────────────────────────────────────
 
-  async signup(dto: SignupDto): Promise<{ message: string }> {
+  async signup(dto: SignupDto): Promise<{ message: string; otp?: string }> {
     const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
     const { user } = await this.users.findOrCreate(phone, dto.email);
+    const isDev = ["development", "staging"].includes(
+      this.config.get<string>("NODE_ENV") ?? "",
+    );
 
     if (!user.pinHash) {
       const otp = this.generateOtp();
@@ -56,6 +59,8 @@ export class AuthService {
       } else {
         this.notifications.sendEmailOtp(dto.email!, otp);
       }
+
+      if (isDev) return { message: VERIFICATION_OTP_SENT, otp };
     }
 
     return { message: VERIFICATION_OTP_SENT };
@@ -179,10 +184,13 @@ export class AuthService {
 
   // ─── Resend OTP ───────────────────────────────────────────────────────────
 
-  async resendOtp(dto: SignupDto): Promise<{ message: string }> {
+  async resendOtp(dto: SignupDto): Promise<{ message: string; otp?: string }> {
     const user = dto.phone
       ? await this.users.findByPhone(normalizeNigerianPhone(dto.phone))
       : await this.users.findByEmail(dto.email!.toLowerCase());
+    const isDev = ["development", "staging"].includes(
+      this.config.get<string>("NODE_ENV") ?? "",
+    );
 
     if (user && !user.pinHash) {
       await this.invalidateOtps(user.id);
@@ -194,6 +202,8 @@ export class AuthService {
       } else {
         this.notifications.sendEmailOtp(user.email!, otp);
       }
+
+      if (isDev) return { message: VERIFICATION_OTP_RESENT, otp };
     }
 
     return { message: VERIFICATION_OTP_RESENT };
