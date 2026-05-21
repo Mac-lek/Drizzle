@@ -7,7 +7,7 @@ import {
 } from "@nestjs/common";
 import { AdminService } from "./service.admin";
 import { PrismaService } from "@prisma-client/prisma.service";
-import { EmailProvider } from "@notifications/providers/nodemailer.provider";
+import { NotificationsService } from "@notifications/service.notifications";
 
 const mockPrisma = {
   admin: {
@@ -24,7 +24,7 @@ const mockPrisma = {
   $transaction: jest.fn(),
 };
 
-const mockEmail = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+const mockNotifications = { sendAdminInvite: jest.fn() };
 
 const ACTIVE_STATUS = { id: 2, name: "ACTIVE" };
 const PENDING_STATUS = { id: 1, name: "PENDING" };
@@ -40,7 +40,7 @@ describe("AdminService", () => {
       providers: [
         AdminService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: EmailProvider, useValue: mockEmail },
+        { provide: NotificationsService, useValue: mockNotifications },
       ],
     }).compile();
 
@@ -94,10 +94,11 @@ describe("AdminService", () => {
 
       expect(mockPrisma.admin.create).toHaveBeenCalled();
       expect(mockPrisma.adminToken.create).toHaveBeenCalled();
-      expect(mockEmail.sendEmail).toHaveBeenCalledWith(
+      expect(mockNotifications.sendAdminInvite).toHaveBeenCalledWith(
         "new@test.com",
-        expect.stringContaining("invited"),
-        expect.stringContaining("Customer Support"),
+        expect.any(String),
+        expect.any(String),
+        expect.any(String),
       );
       expect(result.message).toContain("Invite sent");
     });

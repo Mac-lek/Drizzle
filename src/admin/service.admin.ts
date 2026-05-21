@@ -3,12 +3,11 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
-  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import * as argon2 from "argon2";
 import { PrismaService } from "@prisma-client/prisma.service";
-import { EmailProvider } from "@notifications/providers/nodemailer.provider";
+import { NotificationsService } from "@notifications/service.notifications";
 import { generateId } from "@common/lib/utils/util.id";
 import { AdminActivityType } from "./lib/enums/lib.enum.admin-activity";
 import { InviteAdminDto } from "./lib/dto/dto.admin.invite";
@@ -21,11 +20,9 @@ const PROTECTED_ROLE = "SADM";
 
 @Injectable()
 export class AdminService {
-  private readonly logger = new Logger(AdminService.name);
-
   constructor(
     private readonly prisma: PrismaService,
-    private readonly email: EmailProvider,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async invite(
@@ -75,15 +72,7 @@ export class AdminService {
       },
     });
 
-    this.email
-      .sendEmail(
-        dto.email,
-        "You have been invited to Drizzle Admin",
-        `You have been invited as a <b>${role.name}</b>.<br><br>` +
-          `Use this token to accept your invite: <b>${rawToken}</b><br>` +
-          `Expires in ${INVITE_TTL_HOURS} hours.`,
-      )
-      .catch((err) => this.logger.error(err, `Failed to send invite email to ${dto.email}`));
+    this.notifications.sendAdminInvite(dto.email, role.name, rawToken, `${INVITE_TTL_HOURS} hours`);
 
     await this.log(
       inviterId,

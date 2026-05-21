@@ -5,7 +5,7 @@ import { ConfigService } from "@nestjs/config";
 import * as argon2 from "argon2";
 import { AdminAuthService } from "./service.admin-auth";
 import { PrismaService } from "@prisma-client/prisma.service";
-import { EmailProvider } from "@notifications/providers/nodemailer.provider";
+import { NotificationsService } from "@notifications/service.notifications";
 
 const mockPrisma = {
   admin: { findUnique: jest.fn(), update: jest.fn() },
@@ -24,7 +24,7 @@ const mockConfig = {
   getOrThrow: jest.fn().mockReturnValue("secret"),
   get: jest.fn().mockReturnValue("15m"),
 };
-const mockEmail = { sendEmail: jest.fn().mockResolvedValue(undefined) };
+const mockNotifications = { sendAdminOtp: jest.fn() };
 
 const ACTIVE_ADMIN = {
   id: "adm_123",
@@ -48,7 +48,7 @@ describe("AdminAuthService", () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: JwtService, useValue: mockJwt },
         { provide: ConfigService, useValue: mockConfig },
-        { provide: EmailProvider, useValue: mockEmail },
+        { provide: NotificationsService, useValue: mockNotifications },
       ],
     }).compile();
 
@@ -110,11 +110,7 @@ describe("AdminAuthService", () => {
         password: "correct",
       });
 
-      expect(mockEmail.sendEmail).toHaveBeenCalledWith(
-        ACTIVE_ADMIN.email,
-        expect.stringContaining("OTP"),
-        expect.stringContaining("Your OTP is"),
-      );
+      expect(mockNotifications.sendAdminOtp).toHaveBeenCalledWith(ACTIVE_ADMIN.email, expect.any(String));
       expect(result).toEqual({ message: "OTP sent to your email" });
     });
   });

@@ -8,7 +8,7 @@ import { JwtService } from "@nestjs/jwt";
 import { ConfigService } from "@nestjs/config";
 import * as argon2 from "argon2";
 import { PrismaService } from "@prisma-client/prisma.service";
-import { EmailProvider } from "@notifications/providers/nodemailer.provider";
+import { NotificationsService } from "@notifications/service.notifications";
 import { generateId } from "@common/lib/utils/util.id";
 import { AdminActivityType } from "./lib/enums/lib.enum.admin-activity";
 import { AdminLoginDto } from "./lib/dto/dto.admin-auth.login";
@@ -29,7 +29,7 @@ export class AdminAuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
-    private readonly email: EmailProvider,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async login(dto: AdminLoginDto, ip?: string): Promise<{ message: string }> {
@@ -82,13 +82,7 @@ export class AdminAuthService {
       },
     });
 
-    this.email
-      .sendEmail(
-        admin.email,
-        "Drizzle Admin — Your login OTP",
-        `Your OTP is <b>${otp}</b>. Valid for ${OTP_TTL_MINUTES} minutes. Do not share.`,
-      )
-      .catch((err) => this.logger.error(err, `Failed to send OTP email to ${admin.email}`));
+    this.notifications.sendAdminOtp(admin.email, otp);
 
     return ok("OTP sent to your email");
   }
