@@ -236,6 +236,19 @@ model LedgerEntry {
   @@map("ledger_entries")
 }
 
+model Waitlist {
+  id          String  @id
+  firstName   String
+  lastName    String
+  email       String  @unique
+  phoneNumber String? @unique
+  hearAboutUs String
+
+  createdAt DateTime @default(now())
+
+  @@map("waitlist")
+}
+
 model WebhookEvent {
   id          String    @id
   provider    String

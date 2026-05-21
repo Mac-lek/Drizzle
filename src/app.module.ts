@@ -19,6 +19,7 @@ import { KycModule } from "./kyc/kyc.module";
 import { AdminModule } from "./admin/admin.module";
 // import { ReconciliationModule } from './reconciliation/reconciliation.module';
 import { HealthModule } from "./health/health.module";
+import { WaitlistModule } from "./waitlist/waitlist.module";
 
 @Module({
   imports: [
@@ -88,6 +89,7 @@ import { HealthModule } from "./health/health.module";
     KycModule,
     AdminModule,
     HealthModule,
+    WaitlistModule,
     // ReconciliationModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: JwtAuthGuard }],
