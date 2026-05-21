@@ -20,7 +20,9 @@ import {
   CREATE_PIN,
   USER_LOGIN_SUCCESSFULLY,
   ACCOUNT_DEACTIVATED,
+  TOKEN_REFRESHED,
 } from "@common/lib/enums/lib.enum.messages";
+import { ok } from "@common/lib/utils/util.response";
 import { SignupDto } from "./lib/dto/dto.auth.signup";
 import { VerifyOtpDto } from "./lib/dto/dto.auth.verify-otp";
 import { SetPinDto } from "./lib/dto/dto.auth.set-pin";
@@ -43,7 +45,7 @@ export class AuthService {
 
   // ─── Signup ───────────────────────────────────────────────────────────────
 
-  async signup(dto: SignupDto): Promise<{ message: string; otp?: string }> {
+  async signup(dto: SignupDto) {
     const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
     const { user } = await this.users.findOrCreate(phone, dto.email);
 
@@ -57,17 +59,15 @@ export class AuthService {
         this.notifications.sendEmailOtp(dto.email!, otp);
       }
 
-      return { message: VERIFICATION_OTP_SENT, otp };
+      return ok(VERIFICATION_OTP_SENT, { otp });
     }
 
-    return { message: VERIFICATION_OTP_SENT };
+    return ok(VERIFICATION_OTP_SENT);
   }
 
   // ─── Verify OTP ───────────────────────────────────────────────────────────
 
-  async verifyOtp(
-    dto: VerifyOtpDto,
-  ): Promise<{ message: string; accessToken: string }> {
+  async verifyOtp(dto: VerifyOtpDto) {
     const user = await this.resolveByIdentifier(dto.identifier);
 
     const invalid = new UnauthorizedException(INVALID_OTP);
@@ -93,15 +93,12 @@ export class AuthService {
 
     const identifier = user.phoneNumber ?? user.email!;
     const accessToken = this.signAccess(user.id, identifier);
-    return { message: "OTP verified successfully", accessToken };
+    return ok("OTP verified successfully", { accessToken });
   }
 
   // ─── Set PIN ──────────────────────────────────────────────────────────────
 
-  async setPin(
-    userId: string,
-    dto: SetPinDto,
-  ): Promise<{ message: string; accessToken: string; refreshToken: string }> {
+  async setPin(userId: string, dto: SetPinDto) {
     const pinHash = await argon2.hash(dto.pin, { type: argon2.argon2id });
     await this.users.setPin(userId, pinHash);
 
@@ -112,14 +109,12 @@ export class AuthService {
       identifier,
     );
 
-    return { message: CREATE_PIN, accessToken, refreshToken };
+    return ok(CREATE_PIN, { accessToken, refreshToken });
   }
 
   // ─── Login ────────────────────────────────────────────────────────────────
 
-  async login(
-    dto: LoginDto,
-  ): Promise<{ message: string; accessToken: string; refreshToken: string }> {
+  async login(dto: LoginDto) {
     const user = await this.resolveByIdentifier(dto.identifier);
 
     const invalid = new UnauthorizedException(INVALID_PIN);
@@ -140,14 +135,12 @@ export class AuthService {
       user.id,
       identifier,
     );
-    return { message: USER_LOGIN_SUCCESSFULLY, accessToken, refreshToken };
+    return ok(USER_LOGIN_SUCCESSFULLY, { accessToken, refreshToken });
   }
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
 
-  async refresh(
-    dto: RefreshDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async refresh(dto: RefreshDto) {
     let payload: JwtPayload;
     try {
       payload = this.jwt.verify<JwtPayload>(dto.refreshToken, {
@@ -176,12 +169,13 @@ export class AuthService {
       data: { used: true },
     });
 
-    return this.issueTokenPair(payload.sub, payload.identifier);
+    const tokens = await this.issueTokenPair(payload.sub, payload.identifier);
+    return ok(TOKEN_REFRESHED, tokens);
   }
 
   // ─── Resend OTP ───────────────────────────────────────────────────────────
 
-  async resendOtp(dto: SignupDto): Promise<{ message: string; otp?: string }> {
+  async resendOtp(dto: SignupDto) {
     const user = dto.phone
       ? await this.users.findByPhone(normalizeNigerianPhone(dto.phone))
       : await this.users.findByEmail(dto.email!.toLowerCase());
@@ -197,10 +191,10 @@ export class AuthService {
         this.notifications.sendEmailOtp(user.email!, otp);
       }
 
-      return { message: VERIFICATION_OTP_RESENT, otp };
+      return ok(VERIFICATION_OTP_RESENT, { otp });
     }
 
-    return { message: VERIFICATION_OTP_RESENT };
+    return ok(VERIFICATION_OTP_RESENT);
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────

@@ -15,6 +15,8 @@ import { AdminLoginDto } from "./lib/dto/dto.admin-auth.login";
 import { AdminVerifyOtpDto } from "./lib/dto/dto.admin-auth.verify-otp";
 import { AcceptInviteDto } from "./lib/dto/dto.admin-auth.accept-invite";
 import { AdminRefreshDto } from "./lib/dto/dto.admin-auth.refresh";
+import { ok } from "@common/lib/utils/util.response";
+import { TOKEN_REFRESHED } from "@common/lib/enums/lib.enum.messages";
 
 const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
@@ -88,13 +90,10 @@ export class AdminAuthService {
       )
       .catch((err) => this.logger.error(err, `Failed to send OTP email to ${admin.email}`));
 
-    return { message: "OTP sent to your email" };
+    return ok("OTP sent to your email");
   }
 
-  async verifyOtp(
-    dto: AdminVerifyOtpDto,
-    ip?: string,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async verifyOtp(dto: AdminVerifyOtpDto, ip?: string) {
     const admin = await this.prisma.admin.findUnique({
       where: { email: dto.email },
       include: { status: { select: { name: true } } },
@@ -156,12 +155,10 @@ export class AdminAuthService {
       ip,
     );
 
-    return tokens;
+    return ok("Login successful", tokens);
   }
 
-  async refresh(
-    dto: AdminRefreshDto,
-  ): Promise<{ accessToken: string; refreshToken: string }> {
+  async refresh(dto: AdminRefreshDto) {
     const record = await this.prisma.adminToken.findFirst({
       where: { type: "REFRESH", used: false, expiresAt: { gt: new Date() } },
       include: { admin: { include: { status: { select: { name: true } } } } },
@@ -177,11 +174,12 @@ export class AdminAuthService {
       data: { used: true },
     });
 
-    return this.issueTokens(
+    const tokens = await this.issueTokens(
       record.admin.id,
       record.admin.email,
       record.admin.roleCode,
     );
+    return ok(TOKEN_REFRESHED, tokens);
   }
 
   async acceptInvite(dto: AcceptInviteDto): Promise<{ message: string }> {
@@ -216,7 +214,7 @@ export class AdminAuthService {
       "Invite accepted, account activated",
     );
 
-    return { message: "Account activated. You can now log in." };
+    return ok("Account activated. You can now log in.");
   }
 
   private async issueTokens(adminId: string, email: string, role: string) {

@@ -2,6 +2,8 @@ import { ConflictException, Injectable, Logger } from "@nestjs/common";
 import { PrismaService } from "@prisma-client/prisma.service";
 import { generateId } from "@common/lib/utils/util.id";
 import { SmileProvider } from "./providers/provider.smile";
+import { ok } from "@common/lib/utils/util.response";
+import { KYC_STATUS_FETCHED, KYC_INITIATED } from "@common/lib/enums/lib.enum.messages";
 
 export interface SmileWebhookBody {
   partner_id: string;
@@ -21,15 +23,15 @@ export class KycService {
     private readonly smile: SmileProvider,
   ) {}
 
-  async getStatus(userId: string): Promise<{ kycStatus: string }> {
+  async getStatus(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { kycStatus: { select: { name: true } } },
     });
-    return { kycStatus: user.kycStatus.name };
+    return ok(KYC_STATUS_FETCHED, { kycStatus: user.kycStatus.name });
   }
 
-  async initiate(userId: string): Promise<{ url: string }> {
+  async initiate(userId: string) {
     const user = await this.prisma.user.findUniqueOrThrow({
       where: { id: userId },
       select: { bvnVerified: true, kycStatus: { select: { name: true } } },
@@ -57,7 +59,7 @@ export class KycService {
     });
 
     this.logger.log({ userId, jobId }, "KYC initiated");
-    return { url };
+    return ok(KYC_INITIATED, { url });
   }
 
   async handleSmileCallback(body: SmileWebhookBody): Promise<void> {

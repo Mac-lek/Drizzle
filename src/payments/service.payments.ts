@@ -12,6 +12,8 @@ import { UsersService } from "@users/service.users";
 import { WalletService } from "@wallet/service.wallet";
 import { PaystackProvider } from "./providers/paystack.provider";
 import { FundDto } from "./lib/dto/dto.payments.fund";
+import { ok } from "@common/lib/utils/util.response";
+import { PAYMENT_INITIALIZED } from "@common/lib/enums/lib.enum.messages";
 
 @Injectable()
 export class PaymentsService {
@@ -25,10 +27,7 @@ export class PaymentsService {
     private readonly config: ConfigService,
   ) {}
 
-  async initializeFunding(
-    userId: string,
-    dto: FundDto,
-  ): Promise<{ authorizationUrl: string; reference: string }> {
+  async initializeFunding(userId: string, dto: FundDto) {
     const user = await this.users.findById(userId);
     if (!user!.email) {
       throw new BadRequestException(
@@ -48,7 +47,7 @@ export class PaymentsService {
       callback_url: undefined,
     });
 
-    return { authorizationUrl: result.authorization_url, reference };
+    return ok(PAYMENT_INITIALIZED, { authorizationUrl: result.authorization_url, reference });
   }
 
   async setupWalletCustomer(userId: string): Promise<void> {

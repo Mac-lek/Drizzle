@@ -9,6 +9,11 @@ import {
 import { User } from "@prisma/client";
 import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { DisbursementService } from "./service.disbursement";
+import { ok } from "@common/lib/utils/util.response";
+import {
+  DISBURSEMENTS_FETCHED,
+  DISBURSEMENT_FETCHED,
+} from "@common/lib/enums/lib.enum.messages";
 
 class DisbursementResponse {
   @ApiProperty() id: string;
@@ -32,18 +37,15 @@ export class DisbursementController {
   @Get("me")
   @ApiOperation({ summary: "List my disbursements" })
   @ApiResponse({ status: 200, type: [DisbursementResponse] })
-  async listMine(@CurrentUser() user: User): Promise<DisbursementResponse[]> {
-    return (await this.disbursements.findByUser(user.id)).map(this.toResponse);
+  async listMine(@CurrentUser() user: User) {
+    return ok(DISBURSEMENTS_FETCHED, (await this.disbursements.findByUser(user.id)).map(this.toResponse));
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Get disbursement by ID" })
   @ApiResponse({ status: 200, type: DisbursementResponse })
-  async getOne(
-    @CurrentUser() user: User,
-    @Param("id") id: string,
-  ): Promise<DisbursementResponse> {
-    return this.toResponse(await this.disbursements.findById(id, user.id));
+  async getOne(@CurrentUser() user: User, @Param("id") id: string) {
+    return ok(DISBURSEMENT_FETCHED, this.toResponse(await this.disbursements.findById(id, user.id)));
   }
 
   private toResponse(d: {

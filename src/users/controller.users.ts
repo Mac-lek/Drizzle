@@ -11,6 +11,12 @@ import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { UsersService } from "./service.users";
 import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
 import { SubmitBvnDto } from "./lib/dto/dto.users.submit-bvn";
+import { ok } from "@common/lib/utils/util.response";
+import {
+  PROFILE_FETCHED,
+  PROFILE_UPDATED,
+  SUCCESSFUL_VERIFICATION,
+} from "@common/lib/enums/lib.enum.messages";
 
 class ProfileResponse {
   @ApiProperty() id: string;
@@ -37,19 +43,16 @@ export class UsersController {
   @Get("me")
   @ApiOperation({ summary: "Get my profile" })
   @ApiResponse({ status: 200, type: ProfileResponse })
-  async getMe(@CurrentUser() user: User): Promise<ProfileResponse> {
-    return this.users.getProfile(user.id);
+  async getMe(@CurrentUser() user: User) {
+    return ok(PROFILE_FETCHED, await this.users.getProfile(user.id));
   }
 
   @Patch("me")
   @ApiOperation({ summary: "Update my profile" })
   @ApiResponse({ status: 200, type: ProfileResponse })
-  async updateMe(
-    @CurrentUser() user: User,
-    @Body() dto: UpdateProfileDto,
-  ): Promise<ProfileResponse> {
+  async updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     await this.users.updateProfile(user.id, dto);
-    return this.users.getProfile(user.id);
+    return ok(PROFILE_UPDATED, await this.users.getProfile(user.id));
   }
 
   @Post("me/bvn")
@@ -61,11 +64,8 @@ export class UsersController {
       "First and last name must be set. Can be retried if Dojah is temporarily unavailable.",
   })
   @ApiResponse({ status: 200, type: ProfileResponse })
-  async submitBvn(
-    @CurrentUser() user: User,
-    @Body() dto: SubmitBvnDto,
-  ): Promise<ProfileResponse> {
+  async submitBvn(@CurrentUser() user: User, @Body() dto: SubmitBvnDto) {
     await this.users.submitBvn(user.id, dto);
-    return this.users.getProfile(user.id);
+    return ok(SUCCESSFUL_VERIFICATION, await this.users.getProfile(user.id));
   }
 }

@@ -172,8 +172,8 @@ describe("AdminAuthService", () => {
         otp: "123456",
       });
 
-      expect(result).toHaveProperty("accessToken");
-      expect(result).toHaveProperty("refreshToken");
+      expect(result.data?.accessToken).toBeDefined();
+      expect(result.data?.refreshToken).toBeDefined();
     });
   });
 

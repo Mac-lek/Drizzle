@@ -57,6 +57,22 @@ export const VAULT_NOT_ACTIVE = (status: string) =>
 // ─── Disbursement ─────────────────────────────────────────────────────────────
 export const DRIP_PROCESSED = "Drip processed successfully";
 export const DRIP_ALREADY_PROCESSED = "This drip has already been processed";
+export const DISBURSEMENTS_FETCHED = "Disbursements fetched successfully";
+export const DISBURSEMENT_FETCHED = "Disbursement fetched successfully";
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+export const PROFILE_FETCHED = "Profile fetched successfully";
+export const PROFILE_UPDATED = "Profile updated successfully";
+
+// ─── Tokens ───────────────────────────────────────────────────────────────────
+export const TOKEN_REFRESHED = "Token refreshed successfully";
+
+// ─── KYC (additional) ─────────────────────────────────────────────────────────
+export const KYC_STATUS_FETCHED = "KYC status fetched successfully";
+export const KYC_INITIATED = "KYC session initiated successfully";
+
+// ─── Payments ─────────────────────────────────────────────────────────────────
+export const PAYMENT_INITIALIZED = "Payment initialized successfully";
 
 // ─── Generic ──────────────────────────────────────────────────────────────────
 export const ERROR_STATUS = "Error";

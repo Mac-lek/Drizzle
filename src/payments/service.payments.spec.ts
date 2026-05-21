@@ -70,11 +70,8 @@ describe("PaymentsService", () => {
         amountKobo: 50000,
       });
 
-      expect(result).toHaveProperty(
-        "authorizationUrl",
-        "https://paystack.com/pay/xxx",
-      );
-      expect(result).toHaveProperty("reference");
+      expect(result.data?.authorizationUrl).toBe("https://paystack.com/pay/xxx");
+      expect(result.data?.reference).toBeDefined();
     });
   });
 

@@ -168,7 +168,7 @@ describe("AuthService", () => {
           data: { used: true },
         }),
       );
-      expect(result.accessToken).toBe("signed-token");
+      expect(result.data?.accessToken).toBe("signed-token");
     });
 
     it("throws UnauthorizedException when phone is not found", async () => {
@@ -217,8 +217,8 @@ describe("AuthService", () => {
         "user-1",
         expect.stringMatching(/^\$argon2/),
       );
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
+      expect(result.data?.accessToken).toBeDefined();
+      expect(result.data?.refreshToken).toBeDefined();
     });
   });
 
@@ -246,8 +246,8 @@ describe("AuthService", () => {
         pin: "1234",
       });
 
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
+      expect(result.data?.accessToken).toBeDefined();
+      expect(result.data?.refreshToken).toBeDefined();
     });
 
     it("logs in successfully with email identifier", async () => {
@@ -261,7 +261,7 @@ describe("AuthService", () => {
       });
 
       expect(usersService.findByEmail).toHaveBeenCalledWith("user@example.com");
-      expect(result.accessToken).toBeDefined();
+      expect(result.data?.accessToken).toBeDefined();
     });
 
     it("throws UnauthorizedException for unknown identifier", async () => {
@@ -328,8 +328,8 @@ describe("AuthService", () => {
           data: { used: true },
         }),
       );
-      expect(result.accessToken).toBeDefined();
-      expect(result.refreshToken).toBeDefined();
+      expect(result.data?.accessToken).toBeDefined();
+      expect(result.data?.refreshToken).toBeDefined();
     });
 
     it("throws UnauthorizedException when JWT is invalid", async () => {

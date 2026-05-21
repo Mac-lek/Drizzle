@@ -56,7 +56,8 @@ describe("KycService", () => {
       (prisma.user.findUniqueOrThrow as jest.Mock).mockResolvedValue({
         kycStatus: { name: "NONE" },
       });
-      expect(await service.getStatus("usr_1")).toEqual({ kycStatus: "NONE" });
+      const result = await service.getStatus("usr_1");
+      expect(result.data?.kycStatus).toBe("NONE");
     });
   });
 
@@ -75,7 +76,7 @@ describe("KycService", () => {
 
       const result = await service.initiate("usr_1");
 
-      expect(result.url).toBe("https://links.usesmileid.com/abc");
+      expect(result.data?.url).toBe("https://links.usesmileid.com/abc");
       const updateCall = (prisma.user.update as jest.Mock).mock.calls[0][0];
       expect(updateCall.data.kycStatusId).toBe(2);
     });

@@ -7,6 +7,7 @@ import { PrismaService } from '@prisma-client/prisma.service';
 import { WalletService } from '@wallet/service.wallet';
 import { generateId } from '@common/lib/utils/util.id';
 import { AdminUserActionDto, AdminKycOverrideDto, AdminWalletCreditDebitDto } from './lib/dto/dto.admin-resource';
+import { ok } from '@common/lib/utils/util.response';
 
 @Injectable()
 export class AdminResourceService {
@@ -18,7 +19,7 @@ export class AdminResourceService {
   // ── Users ──────────────────────────────────────────────────────────────────
 
   async listUsers() {
-    return this.prisma.user.findMany({
+    const data = await this.prisma.user.findMany({
       select: {
         id: true,
         phoneNumber: true,
@@ -32,6 +33,7 @@ export class AdminResourceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return ok('Users fetched successfully', data);
   }
 
   async getUser(userId: string) {
@@ -44,7 +46,7 @@ export class AdminResourceService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return ok('User fetched successfully', user);
   }
 
   async updateUserStatus(userId: string, dto: AdminUserActionDto) {
@@ -54,17 +56,18 @@ export class AdminResourceService {
     const newStatus = await this.prisma.userStatus.findUnique({ where: { name: dto.status } });
     if (!newStatus) throw new BadRequestException(`Unknown status: ${dto.status}`);
 
-    return this.prisma.user.update({
+    const data = await this.prisma.user.update({
       where: { id: userId },
       data: { statusId: newStatus.id },
       select: { id: true, status: { select: { name: true } } },
     });
+    return ok('User status updated successfully', data);
   }
 
   // ── KYC ───────────────────────────────────────────────────────────────────
 
   async listKycPending() {
-    return this.prisma.user.findMany({
+    const data = await this.prisma.user.findMany({
       where: { kycStatus: { name: 'PENDING' } },
       select: {
         id: true,
@@ -78,6 +81,7 @@ export class AdminResourceService {
       },
       orderBy: { createdAt: 'asc' },
     });
+    return ok('KYC records fetched successfully', data);
   }
 
   async getUserKyc(userId: string) {
@@ -90,7 +94,7 @@ export class AdminResourceService {
       },
     });
     if (!user) throw new NotFoundException('User not found');
-    return user;
+    return ok('User KYC fetched successfully', user);
   }
 
   async overrideKyc(userId: string, dto: AdminKycOverrideDto) {
@@ -100,11 +104,12 @@ export class AdminResourceService {
     const newStatus = await this.prisma.kycStatus.findUnique({ where: { name: dto.kycStatus } });
     if (!newStatus) throw new BadRequestException(`Unknown KYC status: ${dto.kycStatus}`);
 
-    return this.prisma.user.update({
+    const data = await this.prisma.user.update({
       where: { id: userId },
       data: { kycStatusId: newStatus.id },
       select: { id: true, kycStatus: { select: { name: true } } },
     });
+    return ok('KYC status overridden successfully', data);
   }
 
   // ── Wallets ───────────────────────────────────────────────────────────────
@@ -117,7 +122,7 @@ export class AdminResourceService {
     if (!wallet) throw new NotFoundException('Wallet not found');
 
     const balance = await this.wallets.getBalance(wallet.id);
-    return { ...wallet, balanceKobo: balance.toString() };
+    return ok('Wallet fetched successfully', { ...wallet, balanceKobo: balance.toString() });
   }
 
   async creditWallet(userId: string, dto: AdminWalletCreditDebitDto, actorId: string) {
@@ -126,7 +131,7 @@ export class AdminResourceService {
 
     const txnId = generateId('txn');
     await this.wallets.credit(wallet.id, BigInt(dto.amountKobo), txnId, dto.description, { creditedBy: actorId });
-    return { message: 'Wallet credited successfully' };
+    return ok('Wallet credited successfully');
   }
 
   async debitWallet(userId: string, dto: AdminWalletCreditDebitDto, actorId: string) {
@@ -140,13 +145,13 @@ export class AdminResourceService {
 
     const txnId = generateId('txn');
     await this.wallets.debit(wallet.id, BigInt(dto.amountKobo), txnId, dto.description, { debitedBy: actorId });
-    return { message: 'Wallet debited successfully' };
+    return ok('Wallet debited successfully');
   }
 
   // ── Vaults ────────────────────────────────────────────────────────────────
 
   async listVaults(userId?: string) {
-    return this.prisma.vault.findMany({
+    const data = await this.prisma.vault.findMany({
       where: userId ? { userId } : undefined,
       include: {
         status: { select: { name: true } },
@@ -155,6 +160,7 @@ export class AdminResourceService {
       },
       orderBy: { createdAt: 'desc' },
     });
+    return ok('Vaults fetched successfully', data);
   }
 
   async getVault(vaultId: string) {
@@ -168,7 +174,7 @@ export class AdminResourceService {
       },
     });
     if (!vault) throw new NotFoundException('Vault not found');
-    return vault;
+    return ok('Vault fetched successfully', vault);
   }
 
   async forceBreakVault(vaultId: string) {
@@ -185,7 +191,6 @@ export class AdminResourceService {
     const brokenStatus = await this.prisma.vaultStatus.findUniqueOrThrow({ where: { name: 'BROKEN' } });
     const txnId = generateId('txn');
 
-    // Return full remaining balance — no penalty for force-break
     const remainingKobo = vault.lockedAmountKobo - BigInt(vault.tranchesSent) * vault.trancheAmountKobo;
 
     await this.wallets.credit(wallet.id, remainingKobo, txnId, 'Admin force-break: full balance returned', { vaultId });
@@ -194,13 +199,13 @@ export class AdminResourceService {
       data: { statusId: brokenStatus.id, brokenAt: new Date() },
     });
 
-    return { message: 'Vault force-broken, balance returned to user wallet' };
+    return ok('Vault force-broken, balance returned to user wallet');
   }
 
   // ── Disbursements ─────────────────────────────────────────────────────────
 
   async listDisbursements(vaultId?: string) {
-    return this.prisma.disbursement.findMany({
+    const data = await this.prisma.disbursement.findMany({
       where: vaultId ? { vaultId } : undefined,
       include: {
         status: { select: { name: true } },
@@ -209,6 +214,7 @@ export class AdminResourceService {
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    return ok('Disbursements fetched successfully', data);
   }
 
   async getDisbursement(id: string) {
@@ -220,7 +226,7 @@ export class AdminResourceService {
       },
     });
     if (!d) throw new NotFoundException('Disbursement not found');
-    return d;
+    return ok('Disbursement fetched successfully', d);
   }
 
   async retryDisbursement(id: string) {
@@ -234,28 +240,29 @@ export class AdminResourceService {
     const pendingStatus = await this.prisma.disbursementStatus.findUniqueOrThrow({ where: { name: 'PENDING' } });
     await this.prisma.disbursement.update({ where: { id }, data: { statusId: pendingStatus.id } });
 
-    return { message: 'Disbursement re-queued for processing' };
+    return ok('Disbursement re-queued for processing');
   }
 
   // ── Payments (webhook events) ──────────────────────────────────────────────
 
   async listPayments() {
-    return this.prisma.webhookEvent.findMany({
+    const data = await this.prisma.webhookEvent.findMany({
       orderBy: { createdAt: 'desc' },
       take: 200,
     });
+    return ok('Payments fetched successfully', data);
   }
 
   async getPayment(id: string) {
     const evt = await this.prisma.webhookEvent.findUnique({ where: { id } });
     if (!evt) throw new NotFoundException('Payment event not found');
-    return evt;
+    return ok('Payment fetched successfully', evt);
   }
 
   // ── Ledger ────────────────────────────────────────────────────────────────
 
   async getLedgerEntries(accountId: string) {
-    return this.prisma.ledgerEntry.findMany({
+    const data = await this.prisma.ledgerEntry.findMany({
       where: { accountId },
       include: {
         accountType: { select: { name: true } },
@@ -264,17 +271,19 @@ export class AdminResourceService {
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
+    return ok('Ledger entries fetched successfully', data);
   }
 
   // ── Activity Logs ──────────────────────────────────────────────────────────
 
   async listAllActivityLogs() {
-    return this.prisma.adminActivityLog.findMany({
+    const data = await this.prisma.adminActivityLog.findMany({
       include: {
         admin: { select: { id: true, email: true, roleCode: true } },
       },
       orderBy: { createdAt: 'desc' },
       take: 500,
     });
+    return ok('Activity logs fetched successfully', data);
   }
 }

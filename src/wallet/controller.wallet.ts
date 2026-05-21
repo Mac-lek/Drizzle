@@ -10,6 +10,8 @@ import { User } from "@prisma/client";
 import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { WalletService } from "./service.wallet";
 import { koboToString } from "@common/lib/utils/util.money";
+import { ok } from "@common/lib/utils/util.response";
+import { WALLET_FETCHED } from "@common/lib/enums/lib.enum.messages";
 
 class WalletResponse {
   @ApiProperty() id: string;
@@ -35,11 +37,11 @@ export class WalletController {
   @Get("me")
   @ApiOperation({ summary: "Get my wallet details and current balance" })
   @ApiResponse({ status: 200, type: WalletResponse })
-  async getMyWallet(@CurrentUser() user: User): Promise<WalletResponse> {
+  async getMyWallet(@CurrentUser() user: User) {
     const w = await this.wallet.findByUserId(user.id);
     const balanceKobo = await this.wallet.getBalance(w.id);
 
-    return {
+    return ok(WALLET_FETCHED, {
       id: w.id,
       userId: w.userId,
       paystackCustomerCode: w.paystackCustomerCode,
@@ -48,6 +50,6 @@ export class WalletController {
       balanceKobo: koboToString(balanceKobo),
       createdAt: w.createdAt,
       updatedAt: w.updatedAt,
-    };
+    });
   }
 }

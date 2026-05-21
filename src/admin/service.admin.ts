@@ -14,6 +14,7 @@ import { AdminActivityType } from "./lib/enums/lib.enum.admin-activity";
 import { InviteAdminDto } from "./lib/dto/dto.admin.invite";
 import { UpdateAdminPermissionsDto } from "./lib/dto/dto.admin.update-permissions";
 import { UpdateAdminStatusDto } from "./lib/dto/dto.admin.update-status";
+import { ok } from "@common/lib/utils/util.response";
 
 const INVITE_TTL_HOURS = 48;
 const PROTECTED_ROLE = "SADM";
@@ -90,7 +91,7 @@ export class AdminService {
       `Invited ${dto.email} as ${dto.roleCode}`,
     );
 
-    return { message: `Invite sent to ${dto.email}` };
+    return ok(`Invite sent to ${dto.email}`);
   }
 
   async list() {
