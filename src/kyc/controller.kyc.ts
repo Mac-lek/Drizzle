@@ -36,7 +36,7 @@ export class KycController {
   @Get("status")
   @ApiOperation({ summary: "Get my KYC status" })
   @ApiResponse({ status: 200, type: KycStatusResponse })
-  getStatus(@CurrentUser() user: User): Promise<KycStatusResponse> {
+  getStatus(@CurrentUser() user: User) {
     return this.kyc.getStatus(user.id);
   }
 
@@ -49,7 +49,7 @@ export class KycController {
       "selfie + document verification. BVN must be verified first.",
   })
   @ApiResponse({ status: 200, type: KycInitiateResponse })
-  initiate(@CurrentUser() user: User): Promise<KycInitiateResponse> {
+  initiate(@CurrentUser() user: User) {
     return this.kyc.initiate(user.id);
   }
 

@@ -43,10 +43,7 @@ export class PaymentsController {
       "Returns a Paystack checkout URL. Redirect the user there to complete payment.",
   })
   @ApiResponse({ status: 201, type: FundInitResponse })
-  fund(
-    @CurrentUser() user: User,
-    @Body() dto: FundDto,
-  ): Promise<FundInitResponse> {
+  fund(@CurrentUser() user: User, @Body() dto: FundDto) {
     return this.payments.initializeFunding(user.id, dto);
   }
 
