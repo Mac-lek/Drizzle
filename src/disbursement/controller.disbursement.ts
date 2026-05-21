@@ -15,17 +15,26 @@ import {
   DISBURSEMENT_FETCHED,
 } from "@common/lib/enums/lib.enum.messages";
 
-class DisbursementResponse {
+class DisbursementData {
   @ApiProperty() id: string;
   @ApiProperty() vaultId: string;
   @ApiProperty() dripNumber: number;
-  @ApiProperty({ description: "Amount in Kobo", example: "50000" })
-  amountKobo: string;
+  @ApiProperty({ description: "Amount in Kobo", example: "50000" }) amountKobo: string;
   @ApiProperty({ example: "COMPLETED" }) status: string;
   @ApiProperty({ nullable: true }) failReason: string | null;
   @ApiProperty({ nullable: true }) attemptedAt: Date | null;
   @ApiProperty({ nullable: true }) completedAt: Date | null;
   @ApiProperty() createdAt: Date;
+}
+
+class DisbursementApiResponse {
+  @ApiProperty() message: string;
+  @ApiProperty({ type: DisbursementData }) data: DisbursementData;
+}
+
+class DisbursementListApiResponse {
+  @ApiProperty() message: string;
+  @ApiProperty({ type: [DisbursementData] }) data: DisbursementData[];
 }
 
 @ApiTags("Disbursement")
@@ -36,14 +45,14 @@ export class DisbursementController {
 
   @Get("me")
   @ApiOperation({ summary: "List my disbursements" })
-  @ApiResponse({ status: 200, type: [DisbursementResponse] })
+  @ApiResponse({ status: 200, type: DisbursementListApiResponse })
   async listMine(@CurrentUser() user: User) {
     return ok(DISBURSEMENTS_FETCHED, (await this.disbursements.findByUser(user.id)).map(this.toResponse));
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Get disbursement by ID" })
-  @ApiResponse({ status: 200, type: DisbursementResponse })
+  @ApiResponse({ status: 200, type: DisbursementApiResponse })
   async getOne(@CurrentUser() user: User, @Param("id") id: string) {
     return ok(DISBURSEMENT_FETCHED, this.toResponse(await this.disbursements.findById(id, user.id)));
   }
@@ -58,7 +67,7 @@ export class DisbursementController {
     attemptedAt: Date | null;
     completedAt: Date | null;
     createdAt: Date;
-  }): DisbursementResponse {
+  }): DisbursementData {
     return {
       id: d.id,
       vaultId: d.vaultId,

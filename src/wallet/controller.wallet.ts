@@ -13,19 +13,21 @@ import { koboToString } from "@common/lib/utils/util.money";
 import { ok } from "@common/lib/utils/util.response";
 import { WALLET_FETCHED } from "@common/lib/enums/lib.enum.messages";
 
-class WalletResponse {
+class WalletData {
   @ApiProperty() id: string;
   @ApiProperty() userId: string;
   @ApiProperty({ nullable: true }) paystackCustomerCode: string | null;
   @ApiProperty({ nullable: true }) paystackVirtualAcctNo: string | null;
   @ApiProperty({ nullable: true }) paystackVirtualBankName: string | null;
-  @ApiProperty({
-    description: "Balance in Kobo (1 Naira = 100 Kobo)",
-    example: "0",
-  })
+  @ApiProperty({ description: "Balance in Kobo (1 Naira = 100 Kobo)", example: "0" })
   balanceKobo: string;
   @ApiProperty() createdAt: Date;
   @ApiProperty() updatedAt: Date;
+}
+
+class WalletApiResponse {
+  @ApiProperty({ example: "Wallet details fetched successfully" }) message: string;
+  @ApiProperty({ type: WalletData }) data: WalletData;
 }
 
 @ApiTags("Wallet")
@@ -36,7 +38,7 @@ export class WalletController {
 
   @Get("me")
   @ApiOperation({ summary: "Get my wallet details and current balance" })
-  @ApiResponse({ status: 200, type: WalletResponse })
+  @ApiResponse({ status: 200, type: WalletApiResponse })
   async getMyWallet(@CurrentUser() user: User) {
     const w = await this.wallet.findByUserId(user.id);
     const balanceKobo = await this.wallet.getBalance(w.id);

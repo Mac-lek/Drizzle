@@ -18,7 +18,7 @@ import {
   SUCCESSFUL_VERIFICATION,
 } from "@common/lib/enums/lib.enum.messages";
 
-class ProfileResponse {
+class ProfileData {
   @ApiProperty() id: string;
   @ApiProperty({ nullable: true }) phoneNumber: string | null;
   @ApiProperty({ nullable: true }) email: string | null;
@@ -27,11 +27,14 @@ class ProfileResponse {
   @ApiProperty() bvnVerified: boolean;
   @ApiProperty() kycStatus: string;
   @ApiProperty() status: string;
-  @ApiProperty({
-    description: "true when firstName, lastName, email, phoneNumber and bvnVerified are all set",
-  })
+  @ApiProperty({ description: "true when firstName, lastName, email, phoneNumber and bvnVerified are all set" })
   profileComplete: boolean;
   @ApiProperty() createdAt: Date;
+}
+
+class ProfileApiResponse {
+  @ApiProperty({ example: "Profile fetched successfully" }) message: string;
+  @ApiProperty({ type: ProfileData }) data: ProfileData;
 }
 
 @ApiTags("Users")
@@ -42,14 +45,14 @@ export class UsersController {
 
   @Get("me")
   @ApiOperation({ summary: "Get my profile" })
-  @ApiResponse({ status: 200, type: ProfileResponse })
+  @ApiResponse({ status: 200, type: ProfileApiResponse })
   async getMe(@CurrentUser() user: User) {
     return ok(PROFILE_FETCHED, await this.users.getProfile(user.id));
   }
 
   @Patch("me")
   @ApiOperation({ summary: "Update my profile" })
-  @ApiResponse({ status: 200, type: ProfileResponse })
+  @ApiResponse({ status: 200, type: ProfileApiResponse })
   async updateMe(@CurrentUser() user: User, @Body() dto: UpdateProfileDto) {
     await this.users.updateProfile(user.id, dto);
     return ok(PROFILE_UPDATED, await this.users.getProfile(user.id));
@@ -63,7 +66,7 @@ export class UsersController {
       "Verifies the BVN against Dojah and stores it encrypted. " +
       "First and last name must be set. Can be retried if Dojah is temporarily unavailable.",
   })
-  @ApiResponse({ status: 200, type: ProfileResponse })
+  @ApiResponse({ status: 200, type: ProfileApiResponse })
   async submitBvn(@CurrentUser() user: User, @Body() dto: SubmitBvnDto) {
     await this.users.submitBvn(user.id, dto);
     return ok(SUCCESSFUL_VERIFICATION, await this.users.getProfile(user.id));

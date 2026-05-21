@@ -19,12 +19,22 @@ import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { Public } from "@common/decorators/public.decorator";
 import { KycService, SmileWebhookBody } from "./service.kyc";
 
-class KycStatusResponse {
+class KycStatusData {
   @ApiProperty({ example: "NONE" }) kycStatus: string;
 }
 
-class KycInitiateResponse {
+class KycStatusApiResponse {
+  @ApiProperty({ example: "KYC status fetched successfully" }) message: string;
+  @ApiProperty({ type: KycStatusData }) data: KycStatusData;
+}
+
+class KycInitiateData {
   @ApiProperty({ example: "https://links.usesmileid.com/..." }) url: string;
+}
+
+class KycInitiateApiResponse {
+  @ApiProperty({ example: "KYC session initiated successfully" }) message: string;
+  @ApiProperty({ type: KycInitiateData }) data: KycInitiateData;
 }
 
 @ApiTags("KYC")
@@ -35,7 +45,7 @@ export class KycController {
 
   @Get("status")
   @ApiOperation({ summary: "Get my KYC status" })
-  @ApiResponse({ status: 200, type: KycStatusResponse })
+  @ApiResponse({ status: 200, type: KycStatusApiResponse })
   getStatus(@CurrentUser() user: User) {
     return this.kyc.getStatus(user.id);
   }
@@ -48,7 +58,7 @@ export class KycController {
       "Creates a Smile Identity hosted verification session. Returns a URL for the user to complete " +
       "selfie + document verification. BVN must be verified first.",
   })
-  @ApiResponse({ status: 200, type: KycInitiateResponse })
+  @ApiResponse({ status: 200, type: KycInitiateApiResponse })
   initiate(@CurrentUser() user: User) {
     return this.kyc.initiate(user.id);
   }
@@ -58,9 +68,7 @@ export class KycController {
   @HttpCode(HttpStatus.OK)
   @ApiSecurity("x-api-key")
   @ApiOperation({ summary: "Smile Identity webhook receiver (internal)" })
-  async smileWebhook(
-    @Body() body: SmileWebhookBody,
-  ): Promise<{ received: boolean }> {
+  async smileWebhook(@Body() body: SmileWebhookBody): Promise<{ received: boolean }> {
     await this.kyc.handleSmileCallback(body);
     return { received: true };
   }

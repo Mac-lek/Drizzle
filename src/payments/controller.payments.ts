@@ -23,11 +23,14 @@ import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { PaymentsService } from "./service.payments";
 import { FundDto } from "./lib/dto/dto.payments.fund";
 
-class FundInitResponse {
-  @ApiProperty({ example: "https://checkout.paystack.com/..." })
-  authorizationUrl: string;
-  @ApiProperty({ example: "a1b2c3d4-..." })
-  reference: string;
+class FundInitData {
+  @ApiProperty({ example: "https://checkout.paystack.com/..." }) authorizationUrl: string;
+  @ApiProperty({ example: "a1b2c3d4-..." }) reference: string;
+}
+
+class FundInitApiResponse {
+  @ApiProperty({ example: "Payment initialized successfully" }) message: string;
+  @ApiProperty({ type: FundInitData }) data: FundInitData;
 }
 
 @ApiTags("Payments")
@@ -39,10 +42,9 @@ export class PaymentsController {
   @ApiBearerAuth()
   @ApiOperation({
     summary: "Initialize wallet funding",
-    description:
-      "Returns a Paystack checkout URL. Redirect the user there to complete payment.",
+    description: "Returns a Paystack checkout URL. Redirect the user there to complete payment.",
   })
-  @ApiResponse({ status: 201, type: FundInitResponse })
+  @ApiResponse({ status: 201, type: FundInitApiResponse })
   fund(@CurrentUser() user: User, @Body() dto: FundDto) {
     return this.payments.initializeFunding(user.id, dto);
   }

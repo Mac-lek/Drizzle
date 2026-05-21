@@ -26,7 +26,7 @@ import {
   VAULT_BROKEN,
 } from "@common/lib/enums/lib.enum.messages";
 
-class VaultResponse {
+class VaultData {
   @ApiProperty() id: string;
   @ApiProperty() userId: string;
   @ApiProperty({ nullable: true }) name: string | null;
@@ -44,6 +44,16 @@ class VaultResponse {
   @ApiProperty() createdAt: Date;
 }
 
+class VaultApiResponse {
+  @ApiProperty() message: string;
+  @ApiProperty({ type: VaultData }) data: VaultData;
+}
+
+class VaultListApiResponse {
+  @ApiProperty() message: string;
+  @ApiProperty({ type: [VaultData] }) data: VaultData[];
+}
+
 @ApiTags("Vault")
 @ApiBearerAuth()
 @Controller("vault")
@@ -52,21 +62,21 @@ export class VaultController {
 
   @Post()
   @ApiOperation({ summary: "Create a new savings vault" })
-  @ApiResponse({ status: 201, type: VaultResponse })
+  @ApiResponse({ status: 201, type: VaultApiResponse })
   async create(@CurrentUser() user: User, @Body() dto: CreateVaultDto) {
     return ok(VAULT_CREATED, this.toResponse(await this.vaults.create(user.id, dto)));
   }
 
   @Get("me")
   @ApiOperation({ summary: "List my vaults" })
-  @ApiResponse({ status: 200, type: [VaultResponse] })
+  @ApiResponse({ status: 200, type: VaultListApiResponse })
   async listMine(@CurrentUser() user: User) {
     return ok(VAULTS_FETCHED, (await this.vaults.findByUser(user.id)).map((v) => this.toResponse(v)));
   }
 
   @Get(":id")
   @ApiOperation({ summary: "Get vault by ID" })
-  @ApiResponse({ status: 200, type: VaultResponse })
+  @ApiResponse({ status: 200, type: VaultApiResponse })
   async getOne(@CurrentUser() user: User, @Param("id") id: string) {
     return ok(VAULT_FETCHED, this.toResponse(await this.vaults.findById(id, user.id)));
   }
@@ -75,15 +85,14 @@ export class VaultController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: "Break vault early",
-    description:
-      "Cancels the vault and returns remaining balance minus a 10% early-exit penalty.",
+    description: "Cancels the vault and returns remaining balance minus a 10% early-exit penalty.",
   })
-  @ApiResponse({ status: 200, type: VaultResponse })
+  @ApiResponse({ status: 200, type: VaultApiResponse })
   async breakVault(@CurrentUser() user: User, @Param("id") id: string) {
     return ok(VAULT_BROKEN, this.toResponse(await this.vaults.breakVault(user.id, id)));
   }
 
-  private toResponse(vault: VaultWithRelations): VaultResponse {
+  private toResponse(vault: VaultWithRelations): VaultData {
     const remaining =
       vault.lockedAmountKobo -
       BigInt(vault.tranchesSent) * vault.trancheAmountKobo;
