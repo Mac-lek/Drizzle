@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   UnauthorizedException,
   ForbiddenException,
 } from "@nestjs/common";
@@ -41,6 +42,8 @@ const REFRESH_TTL_DAYS = 30;
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly users: UsersService,
@@ -53,7 +56,8 @@ export class AuthService {
 
   async signup(dto: SignupDto) {
     const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
-    const { user } = await this.users.findOrCreate(phone, dto.email);
+    const { user, created } = await this.users.findOrCreate(phone, dto.email);
+    this.logger.log(`signup: user=${user.id} created=${created}`);
 
     if (!user.passwordHash) {
       const otp = this.generateOtp();
@@ -61,13 +65,16 @@ export class AuthService {
 
       if (phone) {
         this.notifications.sendPhoneOtp(phone, otp);
+        this.logger.log(`signup: OTP sent via SMS user=${user.id}`);
       } else {
         this.notifications.sendEmailOtp(dto.email!, otp);
+        this.logger.log(`signup: OTP sent via email user=${user.id}`);
       }
 
       return ok(VERIFICATION_OTP_SENT, { otp });
     }
 
+    this.logger.log(`signup: already registered, skipping OTP user=${user.id}`);
     return ok(VERIFICATION_OTP_SENT);
   }
 
@@ -77,7 +84,10 @@ export class AuthService {
     const user = await this.resolveByIdentifier(dto.identifier);
 
     const invalid = new UnauthorizedException(INVALID_OTP);
-    if (!user) throw invalid;
+    if (!user) {
+      this.logger.warn(`verifyOtp: user not found identifier=${dto.identifier}`);
+      throw invalid;
+    }
 
     const otpTypeId = await this.resolveTokenTypeId("OTP");
     const token = await this.prisma.token.findFirst({
@@ -90,13 +100,17 @@ export class AuthService {
       orderBy: { createdAt: "desc" },
     });
 
-    if (!token || token.token !== dto.otp) throw invalid;
+    if (!token || token.token !== dto.otp) {
+      this.logger.warn(`verifyOtp: invalid or expired OTP user=${user.id}`);
+      throw invalid;
+    }
 
     await this.prisma.token.update({
       where: { id: token.id },
       data: { used: true },
     });
 
+    this.logger.log(`verifyOtp: success user=${user.id}`);
     const identifier = user.phoneNumber ?? user.email!;
     const accessToken = this.signAccess(user.id, identifier);
     return ok("OTP verified successfully", { accessToken });
@@ -106,11 +120,13 @@ export class AuthService {
 
   async setPassword(userId: string, dto: SetPasswordDto) {
     if (dto.password !== dto.confirmPassword) {
+      this.logger.warn(`setPassword: passwords do not match user=${userId}`);
       throw new BadRequestException("Passwords do not match");
     }
 
     const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
     await this.users.setPassword(userId, passwordHash);
+    this.logger.log(`setPassword: password set user=${userId}`);
 
     const user = await this.users.findById(userId);
     const identifier = user!.phoneNumber ?? user!.email!;
@@ -124,6 +140,7 @@ export class AuthService {
   async setTransactionPin(userId: string, dto: SetTransactionPinDto) {
     const pinHash = await argon2.hash(dto.pin, { type: argon2.argon2id });
     await this.users.setTransactionPin(userId, pinHash);
+    this.logger.log(`setTransactionPin: PIN set user=${userId}`);
     return ok(SET_TRANSACTION_PIN);
   }
 
@@ -133,16 +150,25 @@ export class AuthService {
     const user = await this.resolveByIdentifier(dto.identifier);
 
     const invalid = new UnauthorizedException(INVALID_PASSWORD);
-    if (!user || !user.passwordHash) throw invalid;
+    if (!user || !user.passwordHash) {
+      this.logger.warn(`login: user not found or no password identifier=${dto.identifier}`);
+      throw invalid;
+    }
 
     const statusName = await this.prisma.userStatus
       .findUnique({ where: { id: user.statusId } })
       .then((s) => s?.name);
 
-    if (statusName !== "ACTIVE") throw new ForbiddenException(ACCOUNT_DEACTIVATED);
+    if (statusName !== "ACTIVE") {
+      this.logger.warn(`login: account not active user=${user.id} status=${statusName}`);
+      throw new ForbiddenException(ACCOUNT_DEACTIVATED);
+    }
 
     const valid = await argon2.verify(user.passwordHash, dto.password);
-    if (!valid) throw invalid;
+    if (!valid) {
+      this.logger.warn(`login: invalid password user=${user.id}`);
+      throw invalid;
+    }
 
     const identifier = user.phoneNumber ?? user.email!;
 
@@ -152,20 +178,26 @@ export class AuthService {
       });
 
       if (!knownDevice) {
-        await this.sendDeviceVerifyOtp(user, dto.fcmToken);
-        return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true });
+        this.logger.log(`login: new device detected, sending OTP user=${user.id}`);
+        const otp = await this.sendDeviceVerifyOtp(user, dto.fcmToken);
+        const isProduction = this.config.get<string>("NODE_ENV") === "production";
+        return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true, ...(!isProduction && { otp }) });
       }
 
       await this.prisma.userDevice.update({
         where: { id: knownDevice.id },
         data: { trusted: true },
       });
+      this.logger.log(`login: known device verified user=${user.id} device=${knownDevice.id}`);
     } else {
-      await this.sendDeviceVerifyOtp(user, null);
-      return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true });
+      this.logger.log(`login: no fcmToken provided, sending device OTP user=${user.id}`);
+      const otp = await this.sendDeviceVerifyOtp(user, null);
+      const isProduction = this.config.get<string>("NODE_ENV") === "production";
+      return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true, ...(!isProduction && { otp }) });
     }
 
     const { accessToken, refreshToken } = await this.issueTokenPair(user.id, identifier);
+    this.logger.log(`login: success user=${user.id}`);
     return ok(USER_LOGIN_SUCCESSFULLY, { accessToken, refreshToken });
   }
 
@@ -175,7 +207,10 @@ export class AuthService {
     const user = await this.resolveByIdentifier(dto.identifier);
 
     const invalid = new UnauthorizedException(INVALID_OTP);
-    if (!user) throw invalid;
+    if (!user) {
+      this.logger.warn(`verifyDevice: user not found identifier=${dto.identifier}`);
+      throw invalid;
+    }
 
     const typeId = await this.resolveTokenTypeId("DEVICE_VERIFY");
     const token = await this.prisma.token.findFirst({
@@ -188,7 +223,10 @@ export class AuthService {
       orderBy: { createdAt: "desc" },
     });
 
-    if (!token || token.token !== dto.otp) throw invalid;
+    if (!token || token.token !== dto.otp) {
+      this.logger.warn(`verifyDevice: invalid or expired OTP user=${user.id}`);
+      throw invalid;
+    }
 
     await this.prisma.token.update({ where: { id: token.id }, data: { used: true } });
 
@@ -203,6 +241,7 @@ export class AuthService {
       update: { trusted: true },
     });
 
+    this.logger.log(`verifyDevice: device trusted user=${user.id}`);
     const identifier = user.phoneNumber ?? user.email!;
     const { accessToken, refreshToken } = await this.issueTokenPair(user.id, identifier);
     return ok(DEVICE_VERIFIED, { accessToken, refreshToken });
@@ -217,6 +256,7 @@ export class AuthService {
         secret: this.config.get<string>("JWT_REFRESH_SECRET"),
       });
     } catch {
+      this.logger.warn(`refresh: invalid or expired refresh token`);
       throw new UnauthorizedException("Invalid or expired refresh token");
     }
 
@@ -231,10 +271,14 @@ export class AuthService {
       },
     });
 
-    if (!stored) throw new UnauthorizedException("Refresh token revoked or not found");
+    if (!stored) {
+      this.logger.warn(`refresh: token revoked or not found user=${payload.sub}`);
+      throw new UnauthorizedException("Refresh token revoked or not found");
+    }
 
     await this.prisma.token.update({ where: { id: stored.id }, data: { used: true } });
 
+    this.logger.log(`refresh: token rotated user=${payload.sub}`);
     const tokens = await this.issueTokenPair(payload.sub, payload.identifier);
     return ok(TOKEN_REFRESHED, tokens);
   }
@@ -253,19 +297,22 @@ export class AuthService {
 
       if (user.phoneNumber) {
         await this.notifications.sendPhoneOtp(user.phoneNumber, otp);
+        this.logger.log(`resendOtp: OTP resent via SMS user=${user.id}`);
       } else {
         this.notifications.sendEmailOtp(user.email!, otp);
+        this.logger.log(`resendOtp: OTP resent via email user=${user.id}`);
       }
 
       return ok(VERIFICATION_OTP_RESENT, { otp });
     }
 
+    this.logger.log(`resendOtp: no-op (user not found or already registered)`);
     return ok(VERIFICATION_OTP_RESENT);
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
-  private async sendDeviceVerifyOtp(user: User, fcmToken: string | null): Promise<void> {
+  private async sendDeviceVerifyOtp(user: User, fcmToken: string | null): Promise<string> {
     await this.invalidateOtps(user.id, "DEVICE_VERIFY");
     const otp = this.generateOtp();
     const typeId = await this.resolveTokenTypeId("DEVICE_VERIFY");
@@ -276,9 +323,13 @@ export class AuthService {
 
     if (user.phoneNumber) {
       this.notifications.sendPhoneOtp(user.phoneNumber, otp);
+      this.logger.log(`sendDeviceVerifyOtp: OTP sent via SMS user=${user.id}`);
     } else {
       this.notifications.sendEmailOtp(user.email!, otp);
+      this.logger.log(`sendDeviceVerifyOtp: OTP sent via email user=${user.id}`);
     }
+
+    return otp;
   }
 
   private async resolveByIdentifier(identifier: string): Promise<User | null> {

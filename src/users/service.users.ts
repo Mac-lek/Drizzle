@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -29,6 +30,8 @@ export interface UserProfile {
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly dojah: DojahProvider,
@@ -57,7 +60,10 @@ export class UsersService {
       ? await this.findByPhone(phoneNumber)
       : await this.findByEmail(email!);
 
-    if (existing) return { user: existing, created: false };
+    if (existing) {
+      this.logger.log(`findOrCreate: existing user found id=${existing.id}`);
+      return { user: existing, created: false };
+    }
 
     const [kycStatus, userStatus] = await Promise.all([
       this.prisma.kycStatus.findUniqueOrThrow({ where: { name: "NONE" } }),
@@ -75,6 +81,7 @@ export class UsersService {
       },
     });
 
+    this.logger.log(`findOrCreate: new user created id=${user.id}`);
     return { user, created: true };
   }
 
@@ -86,7 +93,19 @@ export class UsersService {
         status: { select: { name: true } },
       },
     });
-    if (!user) throw new NotFoundException("User not found");
+    if (!user) {
+      this.logger.warn(`getProfile: user not found id=${userId}`);
+      throw new NotFoundException("User not found");
+    }
+
+    const profileComplete = !!(
+      user.firstName &&
+      user.lastName &&
+      user.email &&
+      user.phoneNumber &&
+      user.bvnVerified
+    );
+    this.logger.log(`getProfile: fetched id=${userId} profileComplete=${profileComplete}`);
 
     return {
       id: user.id,
@@ -97,27 +116,23 @@ export class UsersService {
       bvnVerified: user.bvnVerified,
       kycStatus: user.kycStatus.name,
       status: user.status.name,
-      profileComplete: !!(
-        user.firstName &&
-        user.lastName &&
-        user.email &&
-        user.phoneNumber &&
-        user.bvnVerified
-      ),
+      profileComplete,
       createdAt: user.createdAt,
     };
   }
 
   async setPassword(userId: string, passwordHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+    this.logger.log(`setPassword: updated user=${userId}`);
   }
 
   async setTransactionPin(userId: string, transactionPinHash: string): Promise<void> {
     await this.prisma.user.update({ where: { id: userId }, data: { transactionPinHash } });
+    this.logger.log(`setTransactionPin: updated user=${userId}`);
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
-    return this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: {
         ...(dto.firstName !== undefined && { firstName: dto.firstName }),
@@ -128,6 +143,8 @@ export class UsersService {
         }),
       },
     });
+    this.logger.log(`updateProfile: updated user=${userId}`);
+    return updated;
   }
 
   async submitBvn(userId: string, dto: SubmitBvnDto): Promise<void> {
@@ -137,15 +154,18 @@ export class UsersService {
     });
 
     if (user.bvnVerified) {
+      this.logger.warn(`submitBvn: BVN already verified user=${userId}`);
       throw new ConflictException("BVN already verified");
     }
 
     if (!user.firstName || !user.lastName) {
+      this.logger.warn(`submitBvn: profile incomplete user=${userId}`);
       throw new BadRequestException(
         "Complete your profile (first and last name) before submitting BVN",
       );
     }
 
+    this.logger.log(`submitBvn: verifying BVN via Dojah user=${userId}`);
     const encryptionKey = this.config.getOrThrow<string>("BVN_ENCRYPTION_KEY");
     const bvnData = await this.dojah.verifyBvn(dto.bvn);
 
@@ -153,15 +173,16 @@ export class UsersService {
       !this.nameMatches(user.firstName, bvnData.firstName) ||
       !this.nameMatches(user.lastName, bvnData.lastName)
     ) {
+      this.logger.warn(`submitBvn: name mismatch user=${userId}`);
       throw new BadRequestException("Name on BVN does not match your profile");
     }
 
     const bvnEncrypted = encryptBvn(dto.bvn, encryptionKey);
-
     await this.prisma.user.update({
       where: { id: userId },
       data: { bvnEncrypted, bvnVerified: true },
     });
+    this.logger.log(`submitBvn: verified and saved user=${userId}`);
   }
 
   private nameMatches(profileName: string, dojahName: string): boolean {
