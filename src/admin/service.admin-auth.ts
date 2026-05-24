@@ -48,17 +48,19 @@ export class AdminAuthService {
     // Generic error — never reveal whether email exists
     const invalid = () => new UnauthorizedException("Invalid credentials");
 
-    if (!admin || !admin.passwordHash) throw invalid();
-    if (!["ACTIVE"].includes(admin.status.name)) throw invalid();
+    if (!admin || !admin.passwordHash) {
+      this.logger.warn(`login: admin not found or no password email=${dto.email}`);
+      throw invalid();
+    }
+    if (!["ACTIVE"].includes(admin.status.name)) {
+      this.logger.warn(`login: admin not active id=${admin.id} status=${admin.status.name}`);
+      throw invalid();
+    }
 
     const passwordValid = await argon2.verify(admin.passwordHash, dto.password);
     if (!passwordValid) {
-      await this.log(
-        admin.id,
-        AdminActivityType.LOGIN_FAILED,
-        "Wrong password",
-        ip,
-      );
+      this.logger.warn(`login: wrong password id=${admin.id}`);
+      await this.log(admin.id, AdminActivityType.LOGIN_FAILED, "Wrong password", ip);
       throw invalid();
     }
 
@@ -83,6 +85,7 @@ export class AdminAuthService {
     });
 
     this.notifications.sendAdminOtp(admin.email, otp);
+    this.logger.log(`login: OTP sent id=${admin.id}`);
 
     return ok("OTP sent to your email");
   }
@@ -93,10 +96,13 @@ export class AdminAuthService {
       include: { status: { select: { name: true } } },
     });
 
-    if (!admin || admin.status.name !== "ACTIVE")
+    if (!admin || admin.status.name !== "ACTIVE") {
+      this.logger.warn(`verifyOtp: admin not found or not active email=${dto.email}`);
       throw new UnauthorizedException("Invalid credentials");
+    }
 
     if (admin.invalidOtpCount >= MAX_OTP_ATTEMPTS) {
+      this.logger.warn(`verifyOtp: account locked id=${admin.id} attempts=${admin.invalidOtpCount}`);
       throw new UnauthorizedException(
         "Account locked due to too many failed OTP attempts",
       );
@@ -119,12 +125,8 @@ export class AdminAuthService {
         where: { id: admin.id },
         data: { invalidOtpCount: { increment: 1 } },
       });
-      await this.log(
-        admin.id,
-        AdminActivityType.LOGIN_FAILED,
-        "Invalid OTP",
-        ip,
-      );
+      await this.log(admin.id, AdminActivityType.LOGIN_FAILED, "Invalid OTP", ip);
+      this.logger.warn(`verifyOtp: invalid OTP id=${admin.id}`);
       throw new UnauthorizedException("Invalid or expired OTP");
     }
 
@@ -137,17 +139,9 @@ export class AdminAuthService {
       data: { invalidOtpCount: 0 },
     });
 
-    const tokens = await this.issueTokens(
-      admin.id,
-      admin.email,
-      admin.roleCode,
-    );
-    await this.log(
-      admin.id,
-      AdminActivityType.LOGIN_SUCCESS,
-      "Login successful",
-      ip,
-    );
+    const tokens = await this.issueTokens(admin.id, admin.email, admin.roleCode);
+    await this.log(admin.id, AdminActivityType.LOGIN_SUCCESS, "Login successful", ip);
+    this.logger.log(`verifyOtp: login success id=${admin.id}`);
 
     return ok("Login successful", tokens);
   }
@@ -160,8 +154,10 @@ export class AdminAuthService {
 
     const valid =
       record && (await argon2.verify(record.token, dto.refreshToken));
-    if (!valid || record.admin.status.name !== "ACTIVE")
+    if (!valid || record.admin.status.name !== "ACTIVE") {
+      this.logger.warn(`refresh: invalid or expired refresh token`);
       throw new UnauthorizedException("Invalid refresh token");
+    }
 
     await this.prisma.adminToken.update({
       where: { id: record.id },
@@ -173,6 +169,7 @@ export class AdminAuthService {
       record.admin.email,
       record.admin.roleCode,
     );
+    this.logger.log(`refresh: token rotated id=${record.admin.id}`);
     return ok(TOKEN_REFRESHED, tokens);
   }
 
@@ -183,10 +180,14 @@ export class AdminAuthService {
     });
 
     const valid = record && (await argon2.verify(record.token, dto.token));
-    if (!valid)
+    if (!valid) {
+      this.logger.warn(`acceptInvite: invalid or expired token`);
       throw new BadRequestException("Invalid or expired invite token");
-    if (record.admin.status.name !== "PENDING")
+    }
+    if (record.admin.status.name !== "PENDING") {
+      this.logger.warn(`acceptInvite: already accepted id=${record.admin.id}`);
       throw new BadRequestException("Invite already accepted");
+    }
 
     const activeStatus = await this.prisma.adminStatus.findUniqueOrThrow({
       where: { name: "ACTIVE" },
@@ -207,6 +208,7 @@ export class AdminAuthService {
       AdminActivityType.ACCEPT_INVITE,
       "Invite accepted, account activated",
     );
+    this.logger.log(`acceptInvite: account activated id=${record.admin.id}`);
 
     return ok("Account activated. You can now log in.");
   }
