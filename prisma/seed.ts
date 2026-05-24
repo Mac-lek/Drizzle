@@ -77,6 +77,8 @@ async function main() {
       { name: 'OTP', label: 'OTP' },
       { name: 'REFRESH', label: 'Refresh Token' },
       { name: 'PIN_RESET', label: 'PIN Reset' },
+      { name: 'PASSWORD_RESET', label: 'Password Reset' },
+      { name: 'DEVICE_VERIFY', label: 'Device Verification' },
     ],
     skipDuplicates: true,
   });

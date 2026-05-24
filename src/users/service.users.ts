@@ -108,8 +108,12 @@ export class UsersService {
     };
   }
 
-  async setPin(userId: string, pinHash: string): Promise<void> {
-    await this.prisma.user.update({ where: { id: userId }, data: { pinHash } });
+  async setPassword(userId: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  }
+
+  async setTransactionPin(userId: string, transactionPinHash: string): Promise<void> {
+    await this.prisma.user.update({ where: { id: userId }, data: { transactionPinHash } });
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
@@ -122,7 +126,6 @@ export class UsersService {
         ...(dto.phone !== undefined && {
           phoneNumber: normalizeNigerianPhone(dto.phone),
         }),
-        ...(dto.fcmToken !== undefined && { fcmToken: dto.fcmToken }),
       },
     });
   }

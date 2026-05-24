@@ -33,8 +33,4 @@ export class UpdateProfileDto {
   @IsPhoneNumber("NG")
   phone?: string;
 
-  @ApiPropertyOptional()
-  @IsOptional()
-  @IsString()
-  fcmToken?: string;
 }

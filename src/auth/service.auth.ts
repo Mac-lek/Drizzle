@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Injectable,
   UnauthorizedException,
   ForbiddenException,
@@ -16,16 +17,21 @@ import {
   VERIFICATION_OTP_SENT,
   VERIFICATION_OTP_RESENT,
   INVALID_OTP,
-  INVALID_PIN,
-  CREATE_PIN,
+  INVALID_PASSWORD,
+  SET_PASSWORD,
+  SET_TRANSACTION_PIN,
+  DEVICE_VERIFIED,
   USER_LOGIN_SUCCESSFULLY,
   ACCOUNT_DEACTIVATED,
   TOKEN_REFRESHED,
+  NEW_DEVICE_DETECTED,
 } from "@common/lib/enums/lib.enum.messages";
 import { ok } from "@common/lib/utils/util.response";
 import { SignupDto } from "./lib/dto/dto.auth.signup";
 import { VerifyOtpDto } from "./lib/dto/dto.auth.verify-otp";
-import { SetPinDto } from "./lib/dto/dto.auth.set-pin";
+import { SetPasswordDto } from "./lib/dto/dto.auth.set-password";
+import { SetTransactionPinDto } from "./lib/dto/dto.auth.set-transaction-pin";
+import { VerifyDeviceDto } from "./lib/dto/dto.auth.verify-device";
 import { LoginDto } from "./lib/dto/dto.auth.login";
 import { RefreshDto } from "./lib/dto/dto.auth.refresh";
 import { JwtPayload } from "./strategies/jwt.strategy";
@@ -49,7 +55,7 @@ export class AuthService {
     const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
     const { user } = await this.users.findOrCreate(phone, dto.email);
 
-    if (!user.pinHash) {
+    if (!user.passwordHash) {
       const otp = this.generateOtp();
       await this.storeOtp(user.id, otp);
 
@@ -96,20 +102,29 @@ export class AuthService {
     return ok("OTP verified successfully", { accessToken });
   }
 
-  // ─── Set PIN ──────────────────────────────────────────────────────────────
+  // ─── Set Password ─────────────────────────────────────────────────────────
 
-  async setPin(userId: string, dto: SetPinDto) {
-    const pinHash = await argon2.hash(dto.pin, { type: argon2.argon2id });
-    await this.users.setPin(userId, pinHash);
+  async setPassword(userId: string, dto: SetPasswordDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException("Passwords do not match");
+    }
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+    await this.users.setPassword(userId, passwordHash);
 
     const user = await this.users.findById(userId);
     const identifier = user!.phoneNumber ?? user!.email!;
-    const { accessToken, refreshToken } = await this.issueTokenPair(
-      user!.id,
-      identifier,
-    );
+    const { accessToken, refreshToken } = await this.issueTokenPair(user!.id, identifier);
 
-    return ok(CREATE_PIN, { accessToken, refreshToken });
+    return ok(SET_PASSWORD, { accessToken, refreshToken });
+  }
+
+  // ─── Set Transaction PIN ──────────────────────────────────────────────────
+
+  async setTransactionPin(userId: string, dto: SetTransactionPinDto) {
+    const pinHash = await argon2.hash(dto.pin, { type: argon2.argon2id });
+    await this.users.setTransactionPin(userId, pinHash);
+    return ok(SET_TRANSACTION_PIN);
   }
 
   // ─── Login ────────────────────────────────────────────────────────────────
@@ -117,25 +132,80 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.resolveByIdentifier(dto.identifier);
 
-    const invalid = new UnauthorizedException(INVALID_PIN);
-    if (!user || !user.pinHash) throw invalid;
+    const invalid = new UnauthorizedException(INVALID_PASSWORD);
+    if (!user || !user.passwordHash) throw invalid;
 
     const statusName = await this.prisma.userStatus
       .findUnique({ where: { id: user.statusId } })
       .then((s) => s?.name);
 
-    if (statusName !== "ACTIVE")
-      throw new ForbiddenException(ACCOUNT_DEACTIVATED);
+    if (statusName !== "ACTIVE") throw new ForbiddenException(ACCOUNT_DEACTIVATED);
 
-    const valid = await argon2.verify(user.pinHash, dto.pin);
+    const valid = await argon2.verify(user.passwordHash, dto.password);
     if (!valid) throw invalid;
 
     const identifier = user.phoneNumber ?? user.email!;
-    const { accessToken, refreshToken } = await this.issueTokenPair(
-      user.id,
-      identifier,
-    );
+
+    if (dto.fcmToken) {
+      const knownDevice = await this.prisma.userDevice.findFirst({
+        where: { userId: user.id, fcmToken: dto.fcmToken, trusted: true },
+      });
+
+      if (!knownDevice) {
+        await this.sendDeviceVerifyOtp(user, dto.fcmToken);
+        return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true });
+      }
+
+      await this.prisma.userDevice.update({
+        where: { id: knownDevice.id },
+        data: { trusted: true },
+      });
+    } else {
+      await this.sendDeviceVerifyOtp(user, null);
+      return ok(NEW_DEVICE_DETECTED, { requiresDeviceVerification: true });
+    }
+
+    const { accessToken, refreshToken } = await this.issueTokenPair(user.id, identifier);
     return ok(USER_LOGIN_SUCCESSFULLY, { accessToken, refreshToken });
+  }
+
+  // ─── Verify Device ────────────────────────────────────────────────────────
+
+  async verifyDevice(dto: VerifyDeviceDto) {
+    const user = await this.resolveByIdentifier(dto.identifier);
+
+    const invalid = new UnauthorizedException(INVALID_OTP);
+    if (!user) throw invalid;
+
+    const typeId = await this.resolveTokenTypeId("DEVICE_VERIFY");
+    const token = await this.prisma.token.findFirst({
+      where: {
+        userId: user.id,
+        typeId,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!token || token.token !== dto.otp) throw invalid;
+
+    await this.prisma.token.update({ where: { id: token.id }, data: { used: true } });
+
+    await this.prisma.userDevice.upsert({
+      where: { userId_fcmToken: { userId: user.id, fcmToken: dto.fcmToken } },
+      create: {
+        id: generateId("dev"),
+        userId: user.id,
+        fcmToken: dto.fcmToken,
+        trusted: true,
+      },
+      update: { trusted: true },
+    });
+
+    const identifier = user.phoneNumber ?? user.email!;
+    const { accessToken, refreshToken } = await this.issueTokenPair(user.id, identifier);
+    return ok(DEVICE_VERIFIED, { accessToken, refreshToken });
   }
 
   // ─── Refresh ──────────────────────────────────────────────────────────────
@@ -161,13 +231,9 @@ export class AuthService {
       },
     });
 
-    if (!stored)
-      throw new UnauthorizedException("Refresh token revoked or not found");
+    if (!stored) throw new UnauthorizedException("Refresh token revoked or not found");
 
-    await this.prisma.token.update({
-      where: { id: stored.id },
-      data: { used: true },
-    });
+    await this.prisma.token.update({ where: { id: stored.id }, data: { used: true } });
 
     const tokens = await this.issueTokenPair(payload.sub, payload.identifier);
     return ok(TOKEN_REFRESHED, tokens);
@@ -180,8 +246,8 @@ export class AuthService {
       ? await this.users.findByPhone(normalizeNigerianPhone(dto.phone))
       : await this.users.findByEmail(dto.email!.toLowerCase());
 
-    if (user && !user.pinHash) {
-      await this.invalidateOtps(user.id);
+    if (user && !user.passwordHash) {
+      await this.invalidateOtps(user.id, "OTP");
       const otp = this.generateOtp();
       await this.storeOtp(user.id, otp);
 
@@ -199,6 +265,22 @@ export class AuthService {
 
   // ─── Private helpers ──────────────────────────────────────────────────────
 
+  private async sendDeviceVerifyOtp(user: User, fcmToken: string | null): Promise<void> {
+    await this.invalidateOtps(user.id, "DEVICE_VERIFY");
+    const otp = this.generateOtp();
+    const typeId = await this.resolveTokenTypeId("DEVICE_VERIFY");
+    const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
+    await this.prisma.token.create({
+      data: { id: generateId("tok"), userId: user.id, typeId, token: otp, expiresAt },
+    });
+
+    if (user.phoneNumber) {
+      this.notifications.sendPhoneOtp(user.phoneNumber, otp);
+    } else {
+      this.notifications.sendEmailOtp(user.email!, otp);
+    }
+  }
+
   private async resolveByIdentifier(identifier: string): Promise<User | null> {
     if (isEmail(identifier)) {
       return this.users.findByEmail(identifier.toLowerCase());
@@ -211,9 +293,7 @@ export class AuthService {
   }
 
   private async resolveTokenTypeId(name: string): Promise<number> {
-    const type = await this.prisma.tokenType.findUniqueOrThrow({
-      where: { name },
-    });
+    const type = await this.prisma.tokenType.findUniqueOrThrow({ where: { name } });
     return type.id;
   }
 
@@ -225,8 +305,8 @@ export class AuthService {
     });
   }
 
-  private async invalidateOtps(userId: string): Promise<void> {
-    const typeId = await this.resolveTokenTypeId("OTP");
+  private async invalidateOtps(userId: string, typeName: string): Promise<void> {
+    const typeId = await this.resolveTokenTypeId(typeName);
     await this.prisma.token.updateMany({
       where: { userId, typeId, used: false },
       data: { used: true },
@@ -258,9 +338,7 @@ export class AuthService {
     );
 
     const refreshTypeId = await this.resolveTokenTypeId("REFRESH");
-    const expiresAt = new Date(
-      Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000,
-    );
+    const expiresAt = new Date(Date.now() + REFRESH_TTL_DAYS * 24 * 60 * 60 * 1000);
     await this.prisma.token.create({
       data: {
         id: generateId("tok"),

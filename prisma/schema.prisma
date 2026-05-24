@@ -82,7 +82,7 @@ model UserStatus {
 
 model TokenType {
   id    Int    @id @default(autoincrement())
-  name  String @unique // OTP | REFRESH | PIN_RESET
+  name  String @unique // OTP | REFRESH | PIN_RESET | PASSWORD_RESET | DEVICE_VERIFY
   label String
 
   tokens Token[]
@@ -93,15 +93,15 @@ model TokenType {
 // ─── Core Models ──────────────────────────────────────────────────────────────
 
 model User {
-  id           String  @id
-  phoneNumber  String? @unique
-  email        String? @unique
-  firstName    String?
-  lastName     String?
-  pinHash      String?
-  bvnEncrypted String?
-  bvnVerified  Boolean @default(false)
-  fcmToken     String?
+  id                 String  @id
+  phoneNumber        String? @unique
+  email              String? @unique
+  firstName          String?
+  lastName           String?
+  passwordHash       String?
+  transactionPinHash String?
+  bvnEncrypted       String?
+  bvnVerified        Boolean @default(false)
 
   kycStatusId Int
   kycStatus   KycStatus @relation(fields: [kycStatusId], references: [id])
@@ -112,6 +112,7 @@ model User {
   vaults       Vault[]
   wallet       Wallet?
   tokens       Token[]
+  devices      UserDevice[]
   activityLogs UserActivityLog[]
 
   createdAt DateTime @default(now())
@@ -121,6 +122,23 @@ model User {
   @@index([statusId])
 
   @@map("users")
+}
+
+model UserDevice {
+  id        String  @id
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fcmToken  String
+  trusted   Boolean @default(false)
+
+  createdAt  DateTime @default(now())
+  lastSeenAt DateTime @updatedAt
+
+  @@unique([userId, fcmToken])
+  @@index([userId])
+  @@index([fcmToken])
+
+  @@map("user_devices")
 }
 
 model Token {

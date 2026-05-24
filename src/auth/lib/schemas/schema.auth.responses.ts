@@ -11,13 +11,23 @@ export class OtpSentResponse {
 }
 
 class AccessTokenData {
-  @ApiProperty({ description: "Short-lived JWT — use only to call POST /auth/set-pin" })
+  @ApiProperty({ description: "Short-lived JWT — use only to call POST /auth/set-password" })
   accessToken: string;
 }
 
 export class OtpVerifiedResponse {
   @ApiProperty({ example: "OTP verified successfully" }) message: string;
   @ApiProperty({ type: AccessTokenData }) data: AccessTokenData;
+}
+
+class DeviceVerificationRequiredData {
+  @ApiProperty({ example: true }) requiresDeviceVerification: boolean;
+}
+
+export class DeviceVerificationRequiredResponse {
+  @ApiProperty({ example: "New device detected, verify your account with the OTP sent to your phone" })
+  message: string;
+  @ApiProperty({ type: DeviceVerificationRequiredData }) data: DeviceVerificationRequiredData;
 }
 
 class TokenPairData {

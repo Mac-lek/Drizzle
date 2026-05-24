@@ -19,6 +19,13 @@ export const INVALID_PIN = "Invalid PIN";
 export const CREATE_PIN = "PIN created successfully";
 export const CHANGE_PIN = "PIN changed successfully";
 export const PIN_RESET = "PIN reset successfully";
+export const SET_PASSWORD = "Password set successfully";
+export const INVALID_PASSWORD = "Invalid password";
+export const PASSWORD_RESET_OTP_SENT =
+  "If an account exists, a password reset OTP has been sent";
+export const PASSWORD_RESET = "Password reset successfully";
+export const SET_TRANSACTION_PIN = "Transaction PIN set successfully";
+export const DEVICE_VERIFIED = "Device verified successfully";
 export const NEW_DEVICE_DETECTED =
   "New device detected, verify your account with the OTP sent to your phone";
 export const INVALID = (text: string) => `Invalid ${text}`;

@@ -1,5 +1,5 @@
-import { ApiProperty } from "@nestjs/swagger";
-import { IsString, Matches } from "class-validator";
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger";
+import { IsOptional, IsString, MinLength, MaxLength } from "class-validator";
 
 export class LoginDto {
   @ApiProperty({
@@ -9,8 +9,14 @@ export class LoginDto {
   @IsString()
   identifier: string;
 
-  @ApiProperty({ example: "1234" })
+  @ApiProperty({ example: "MyP@ssw0rd!" })
   @IsString()
-  @Matches(/^\d{4}$/, { message: "PIN must be exactly 4 digits" })
-  pin: string;
+  @MinLength(8)
+  @MaxLength(64)
+  password: string;
+
+  @ApiPropertyOptional({ description: "Firebase Cloud Messaging token for this device" })
+  @IsOptional()
+  @IsString()
+  fcmToken?: string;
 }
