@@ -7,6 +7,7 @@ import { UsersService } from "@users/service.users";
 export interface JwtPayload {
   sub: string;
   identifier: string;
+  type?: "access" | "onboarding";
 }
 
 @Injectable()
@@ -25,6 +26,6 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: JwtPayload) {
     const user = await this.users.findById(payload.sub);
     if (!user) throw new UnauthorizedException();
-    return user;
+    return { ...user, tokenType: payload.type ?? "access" };
   }
 }

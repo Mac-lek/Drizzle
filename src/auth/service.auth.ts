@@ -112,7 +112,7 @@ export class AuthService {
 
     this.logger.log(`verifyOtp: success user=${user.id}`);
     const identifier = user.phoneNumber ?? user.email!;
-    const accessToken = this.signAccess(user.id, identifier);
+    const accessToken = this.signAccess(user.id, identifier, "onboarding", "1h");
     return ok("OTP verified successfully", { accessToken });
   }
 
@@ -364,12 +364,17 @@ export class AuthService {
     });
   }
 
-  private signAccess(userId: string, identifier: string): string {
+  private signAccess(
+    userId: string,
+    identifier: string,
+    type: "access" | "onboarding" = "access",
+    ttl?: string,
+  ): string {
     return this.jwt.sign(
-      { sub: userId, identifier },
+      { sub: userId, identifier, type },
       {
         secret: this.config.get<string>("JWT_ACCESS_SECRET"),
-        expiresIn: this.config.get<string>("JWT_ACCESS_TTL"),
+        expiresIn: ttl ?? this.config.get<string>("JWT_ACCESS_TTL"),
       },
     );
   }

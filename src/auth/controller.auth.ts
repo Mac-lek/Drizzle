@@ -24,6 +24,7 @@ import {
   DeviceVerificationRequiredResponse,
 } from "./lib/schemas/schema.auth.responses";
 import { Public } from "@common/decorators/public.decorator";
+import { AllowOnboarding } from "@common/decorators/allow-onboarding.decorator";
 import { CurrentUser } from "@common/decorators/current-user.decorator";
 import { User } from "@prisma/client";
 
@@ -55,7 +56,7 @@ export class AuthController {
     summary: "Verify OTP",
     description:
       "Submit the 6-digit OTP received via SMS or email. " +
-      "Returns a short-lived access token valid only for POST /auth/set-password.",
+      "Returns a short-lived onboarding token valid only for POST /auth/set-password.",
   })
   @ApiResponse({ status: 200, type: OtpVerifiedResponse })
   @ApiUnauthorizedResponse({ description: "Invalid or expired OTP" })
@@ -66,10 +67,11 @@ export class AuthController {
   @Post("set-password")
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @AllowOnboarding()
   @ApiOperation({
     summary: "Set account password",
     description:
-      "Called immediately after verify-otp using the returned access token. " +
+      "Called immediately after verify-otp using the returned onboarding token. " +
       "Sets the account password and returns a full access + refresh token pair.",
   })
   @ApiResponse({ status: 200, type: TokenPairResponse })
@@ -82,11 +84,13 @@ export class AuthController {
   @Post("set-transaction-pin")
   @HttpCode(HttpStatus.OK)
   @ApiBearerAuth()
+  @AllowOnboarding()
   @ApiOperation({
     summary: "Set transaction PIN",
     description:
       "Sets a 4-digit numeric PIN used to authorise transactions. " +
-      "Optional during onboarding — can be called any time after login.",
+      "Accepts both onboarding and regular access tokens — can be called during " +
+      "onboarding or any time after login.",
   })
   @ApiResponse({ status: 200 })
   @ApiUnauthorizedResponse({ description: "Missing or invalid bearer token" })

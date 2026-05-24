@@ -8,6 +8,8 @@ import { ConfigService } from "@nestjs/config";
 import { AuthGuard } from "@nestjs/passport";
 import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 import { SKIP_API_KEY } from "../decorators/skip-api-key.decorator";
+import { ALLOW_ONBOARDING_KEY } from "../decorators/allow-onboarding.decorator";
+import { SESSION_EXPIRED } from "../lib/enums/lib.enum.messages";
 
 @Injectable()
 export class JwtAuthGuard extends AuthGuard("jwt") {
@@ -42,5 +44,26 @@ export class JwtAuthGuard extends AuthGuard("jwt") {
     }
 
     return super.canActivate(context);
+  }
+
+  handleRequest(err: any, user: any, info: any, context: ExecutionContext) {
+    if (info?.name === "TokenExpiredError") {
+      throw new UnauthorizedException(SESSION_EXPIRED);
+    }
+    if (err || !user) {
+      throw err || new UnauthorizedException();
+    }
+
+    if (user.tokenType === "onboarding") {
+      const allowOnboarding = this.reflector.getAllAndOverride<boolean>(
+        ALLOW_ONBOARDING_KEY,
+        [context.getHandler(), context.getClass()],
+      );
+      if (!allowOnboarding) {
+        throw new UnauthorizedException("Onboarding token is not valid for this endpoint");
+      }
+    }
+
+    return user;
   }
 }
