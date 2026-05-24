@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '@prisma-client/prisma.service';
@@ -11,6 +12,8 @@ import { ok } from '@common/lib/utils/util.response';
 
 @Injectable()
 export class AdminResourceService {
+  private readonly logger = new Logger(AdminResourceService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallets: WalletService,
@@ -61,6 +64,7 @@ export class AdminResourceService {
       data: { statusId: newStatus.id },
       select: { id: true, status: { select: { name: true } } },
     });
+    this.logger.log(`updateUserStatus: user=${userId} status=${dto.status}`);
     return ok('User status updated successfully', data);
   }
 
@@ -109,6 +113,7 @@ export class AdminResourceService {
       data: { kycStatusId: newStatus.id },
       select: { id: true, kycStatus: { select: { name: true } } },
     });
+    this.logger.log(`overrideKyc: user=${userId} kycStatus=${dto.kycStatus}`);
     return ok('KYC status overridden successfully', data);
   }
 
@@ -131,6 +136,7 @@ export class AdminResourceService {
 
     const txnId = generateId('txn');
     await this.wallets.credit(wallet.id, BigInt(dto.amountKobo), txnId, dto.description, { creditedBy: actorId });
+    this.logger.log(`creditWallet: user=${userId} amountKobo=${dto.amountKobo} actor=${actorId}`);
     return ok('Wallet credited successfully');
   }
 
@@ -140,11 +146,13 @@ export class AdminResourceService {
 
     const balance = await this.wallets.getBalance(wallet.id);
     if (balance < BigInt(dto.amountKobo)) {
+      this.logger.warn(`debitWallet: insufficient balance user=${userId} balance=${balance} requested=${dto.amountKobo}`);
       throw new BadRequestException('Insufficient wallet balance');
     }
 
     const txnId = generateId('txn');
     await this.wallets.debit(wallet.id, BigInt(dto.amountKobo), txnId, dto.description, { debitedBy: actorId });
+    this.logger.log(`debitWallet: user=${userId} amountKobo=${dto.amountKobo} actor=${actorId}`);
     return ok('Wallet debited successfully');
   }
 
@@ -183,7 +191,10 @@ export class AdminResourceService {
       include: { status: { select: { name: true } } },
     });
     if (!vault) throw new NotFoundException('Vault not found');
-    if (vault.status.name !== 'ACTIVE') throw new BadRequestException('Only active vaults can be force-broken');
+    if (vault.status.name !== 'ACTIVE') {
+      this.logger.warn(`forceBreakVault: vault not active vault=${vaultId} status=${vault.status.name}`);
+      throw new BadRequestException('Only active vaults can be force-broken');
+    }
 
     const wallet = await this.prisma.wallet.findUnique({ where: { userId: vault.userId } });
     if (!wallet) throw new NotFoundException('User wallet not found');
@@ -199,6 +210,7 @@ export class AdminResourceService {
       data: { statusId: brokenStatus.id, brokenAt: new Date() },
     });
 
+    this.logger.log(`forceBreakVault: vault=${vaultId} returnedKobo=${remainingKobo}`);
     return ok('Vault force-broken, balance returned to user wallet');
   }
 
@@ -235,11 +247,15 @@ export class AdminResourceService {
       include: { status: { select: { name: true } } },
     });
     if (!d) throw new NotFoundException('Disbursement not found');
-    if (d.status.name !== 'FAILED') throw new BadRequestException('Only FAILED disbursements can be retried');
+    if (d.status.name !== 'FAILED') {
+      this.logger.warn(`retryDisbursement: not failed id=${id} status=${d.status.name}`);
+      throw new BadRequestException('Only FAILED disbursements can be retried');
+    }
 
     const pendingStatus = await this.prisma.disbursementStatus.findUniqueOrThrow({ where: { name: 'PENDING' } });
     await this.prisma.disbursement.update({ where: { id }, data: { statusId: pendingStatus.id } });
 
+    this.logger.log(`retryDisbursement: re-queued id=${id}`);
     return ok('Disbursement re-queued for processing');
   }
 

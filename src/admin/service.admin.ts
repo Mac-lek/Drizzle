@@ -3,6 +3,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import * as argon2 from "argon2";
@@ -20,6 +21,8 @@ const PROTECTED_ROLE = "SADM";
 
 @Injectable()
 export class AdminService {
+  private readonly logger = new Logger(AdminService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly notifications: NotificationsService,
@@ -30,19 +33,25 @@ export class AdminService {
     dto: InviteAdminDto,
   ): Promise<{ message: string }> {
     if (dto.roleCode === PROTECTED_ROLE) {
+      this.logger.warn(`invite: attempt to invite Super Admin by inviter=${inviterId}`);
       throw new ForbiddenException("Cannot invite another Super Admin");
     }
 
     const role = await this.prisma.adminRole.findUnique({
       where: { code: dto.roleCode },
     });
-    if (!role) throw new BadRequestException(`Unknown role: ${dto.roleCode}`);
+    if (!role) {
+      this.logger.warn(`invite: unknown role=${dto.roleCode} inviter=${inviterId}`);
+      throw new BadRequestException(`Unknown role: ${dto.roleCode}`);
+    }
 
     const existing = await this.prisma.admin.findUnique({
       where: { email: dto.email },
     });
-    if (existing)
+    if (existing) {
+      this.logger.warn(`invite: email already exists email=${dto.email} inviter=${inviterId}`);
       throw new ConflictException("An admin with this email already exists");
+    }
 
     const pendingStatus = await this.prisma.adminStatus.findUniqueOrThrow({
       where: { name: "PENDING" },
@@ -73,6 +82,7 @@ export class AdminService {
     });
 
     this.notifications.sendAdminInvite(dto.email, role.name, rawToken, `${INVITE_TTL_HOURS} hours`);
+    this.logger.log(`invite: sent email=${dto.email} role=${dto.roleCode} inviter=${inviterId}`);
 
     await this.log(
       inviterId,
@@ -132,9 +142,14 @@ export class AdminService {
     const target = await this.prisma.admin.findUnique({
       where: { id: targetId },
     });
-    if (!target) throw new NotFoundException("Admin not found");
-    if (target.roleCode === PROTECTED_ROLE)
+    if (!target) {
+      this.logger.warn(`updatePermissions: target not found id=${targetId}`);
+      throw new NotFoundException("Admin not found");
+    }
+    if (target.roleCode === PROTECTED_ROLE) {
+      this.logger.warn(`updatePermissions: attempt on Super Admin actor=${actorId}`);
       throw new ForbiddenException("Cannot modify Super Admin permissions");
+    }
 
     await this.prisma.$transaction(
       dto.permissions.map((p) =>
@@ -152,6 +167,7 @@ export class AdminService {
       ),
     );
 
+    this.logger.log(`updatePermissions: updated target=${targetId} actor=${actorId}`);
     await this.log(
       actorId,
       AdminActivityType.UPDATE_PERMISSIONS,
@@ -169,17 +185,26 @@ export class AdminService {
       include: { role: true },
     });
 
-    if (!target) throw new NotFoundException("Admin not found");
-    if (target.roleCode === PROTECTED_ROLE)
+    if (!target) {
+      this.logger.warn(`updateStatus: target not found id=${targetId}`);
+      throw new NotFoundException("Admin not found");
+    }
+    if (target.roleCode === PROTECTED_ROLE) {
+      this.logger.warn(`updateStatus: attempt on Super Admin actor=${actorId}`);
       throw new ForbiddenException("Cannot change Super Admin status");
-    if (targetId === actorId)
+    }
+    if (targetId === actorId) {
+      this.logger.warn(`updateStatus: self-status change attempt actor=${actorId}`);
       throw new ForbiddenException("Cannot change your own status");
+    }
 
     const newStatus = await this.prisma.adminStatus.findUnique({
       where: { name: dto.status },
     });
-    if (!newStatus)
+    if (!newStatus) {
+      this.logger.warn(`updateStatus: unknown status=${dto.status}`);
       throw new BadRequestException(`Unknown status: ${dto.status}`);
+    }
 
     await this.prisma.admin.update({
       where: { id: targetId },
@@ -193,6 +218,7 @@ export class AdminService {
         DEACTIVATED: AdminActivityType.DEACTIVATE,
       }[dto.status] ?? AdminActivityType.ACTIVATE;
 
+    this.logger.log(`updateStatus: target=${targetId} status=${dto.status} actor=${actorId}`);
     await this.log(
       actorId,
       activityType,

@@ -1,10 +1,12 @@
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { Wallet } from "@prisma/client";
 import { PrismaService } from "@prisma-client/prisma.service";
 import { LedgerService } from "@ledger/service.ledger";
 
 @Injectable()
 export class WalletService {
+  private readonly logger = new Logger(WalletService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly ledger: LedgerService,
@@ -12,7 +14,10 @@ export class WalletService {
 
   async findByUserId(userId: string): Promise<Wallet> {
     const wallet = await this.prisma.wallet.findUnique({ where: { userId } });
-    if (!wallet) throw new NotFoundException("Wallet not found");
+    if (!wallet) {
+      this.logger.warn(`findByUserId: wallet not found user=${userId}`);
+      throw new NotFoundException("Wallet not found");
+    }
     return wallet;
   }
 
@@ -37,6 +42,7 @@ export class WalletService {
         metadata,
       },
     ]);
+    this.logger.log(`credit: wallet=${walletId} amountKobo=${amountKobo} txn=${transactionId}`);
   }
 
   async debit(
@@ -56,5 +62,6 @@ export class WalletService {
         metadata,
       },
     ]);
+    this.logger.log(`debit: wallet=${walletId} amountKobo=${amountKobo} txn=${transactionId}`);
   }
 }

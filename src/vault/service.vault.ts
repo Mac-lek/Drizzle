@@ -2,6 +2,7 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
@@ -24,6 +25,8 @@ export type VaultWithRelations = Prisma.VaultGetPayload<{
 
 @Injectable()
 export class VaultService {
+  private readonly logger = new Logger(VaultService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly wallets: WalletService,
@@ -41,6 +44,7 @@ export class VaultService {
 
     const startsAt = new Date(dto.startsAt);
     if (startsAt <= new Date()) {
+      this.logger.warn(`create: startsAt in the past user=${userId}`);
       throw new BadRequestException("startsAt must be in the future");
     }
 
@@ -92,6 +96,7 @@ export class VaultService {
         (debits._sum.amountKobo ?? BigInt(0));
 
       if (balance < lockedAmountKobo) {
+        this.logger.warn(`create: insufficient balance user=${userId} balance=${balance} requested=${lockedAmountKobo}`);
         throw new BadRequestException("Insufficient wallet balance");
       }
 
@@ -134,6 +139,7 @@ export class VaultService {
       });
     });
 
+    this.logger.log(`create: vault=${vaultId} user=${userId} amountKobo=${lockedAmountKobo} tranches=${totalTranches}`);
     return this.prisma.vault.findUniqueOrThrow({
       where: { id: vaultId },
       include: vaultInclude,
@@ -145,8 +151,14 @@ export class VaultService {
       where: { id },
       include: vaultInclude,
     });
-    if (!vault) throw new NotFoundException("Vault not found");
-    if (vault.userId !== userId) throw new ForbiddenException();
+    if (!vault) {
+      this.logger.warn(`findById: vault not found id=${id}`);
+      throw new NotFoundException("Vault not found");
+    }
+    if (vault.userId !== userId) {
+      this.logger.warn(`findById: forbidden user=${userId} vault=${id}`);
+      throw new ForbiddenException();
+    }
     return vault;
   }
 
@@ -165,6 +177,7 @@ export class VaultService {
     const vault = await this.findById(vaultId, userId);
 
     if (vault.status.name !== "ACTIVE") {
+      this.logger.warn(`breakVault: vault not active vault=${vaultId} status=${vault.status.name}`);
       throw new BadRequestException("Only active vaults can be broken");
     }
 
@@ -240,6 +253,7 @@ export class VaultService {
       });
     });
 
+    this.logger.log(`breakVault: vault=${vaultId} user=${userId} returnKobo=${returnKobo} penaltyKobo=${penaltyKobo}`);
     return this.prisma.vault.findUniqueOrThrow({
       where: { id: vaultId },
       include: vaultInclude,

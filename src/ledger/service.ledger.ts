@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { PrismaService } from "@prisma-client/prisma.service";
 import { generateId } from "@common/lib/utils/util.id";
@@ -14,6 +14,7 @@ export interface LedgerEntryInput {
 
 @Injectable()
 export class LedgerService {
+  private readonly logger = new Logger(LedgerService.name);
   private readonly accountTypeIds = new Map<string, number>();
   private readonly directionIds = new Map<string, number>();
 
@@ -37,6 +38,7 @@ export class LedgerService {
     );
 
     await this.prisma.ledgerEntry.createMany({ data: creates });
+    this.logger.log(`record: txn=${transactionId} entries=${entries.length}`);
   }
 
   async getBalance(accountId: string, accountType: string): Promise<bigint> {
