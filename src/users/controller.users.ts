@@ -3,6 +3,7 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiProperty,
+  ApiPropertyOptional,
   ApiResponse,
   ApiTags,
 } from "@nestjs/swagger";
@@ -24,10 +25,12 @@ class ProfileData {
   @ApiProperty({ nullable: true }) email: string | null;
   @ApiProperty({ nullable: true }) firstName: string | null;
   @ApiProperty({ nullable: true }) lastName: string | null;
+  @ApiPropertyOptional({ nullable: true, example: "1995-04-12" }) dateOfBirth: Date | null;
+  @ApiPropertyOptional({ nullable: true, enum: ["MALE", "FEMALE", "OTHER"] }) gender: string | null;
   @ApiProperty() bvnVerified: boolean;
   @ApiProperty() kycStatus: string;
   @ApiProperty() status: string;
-  @ApiProperty({ description: "true when firstName, lastName, email, phoneNumber and bvnVerified are all set" })
+  @ApiProperty({ description: "true when firstName, lastName, email, phoneNumber, dateOfBirth, gender and bvnVerified are all set" })
   profileComplete: boolean;
   @ApiProperty() createdAt: Date;
 }

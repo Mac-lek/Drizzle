@@ -21,6 +21,8 @@ export interface UserProfile {
   email: string | null;
   firstName: string | null;
   lastName: string | null;
+  dateOfBirth: Date | null;
+  gender: string | null;
   bvnVerified: boolean;
   kycStatus: string;
   status: string;
@@ -103,7 +105,9 @@ export class UsersService {
       user.lastName &&
       user.email &&
       user.phoneNumber &&
-      user.bvnVerified
+      user.bvnVerified &&
+      user.dateOfBirth &&
+      user.gender
     );
     this.logger.log(`getProfile: fetched id=${userId} profileComplete=${profileComplete}`);
 
@@ -113,6 +117,8 @@ export class UsersService {
       email: user.email,
       firstName: user.firstName,
       lastName: user.lastName,
+      dateOfBirth: user.dateOfBirth,
+      gender: user.gender,
       bvnVerified: user.bvnVerified,
       kycStatus: user.kycStatus.name,
       status: user.status.name,
@@ -141,6 +147,8 @@ export class UsersService {
         ...(dto.phone !== undefined && {
           phoneNumber: normalizeNigerianPhone(dto.phone),
         }),
+        ...(dto.dateOfBirth !== undefined && { dateOfBirth: new Date(dto.dateOfBirth) }),
+        ...(dto.gender !== undefined && { gender: dto.gender }),
       },
     });
     this.logger.log(`updateProfile: updated user=${userId}`);

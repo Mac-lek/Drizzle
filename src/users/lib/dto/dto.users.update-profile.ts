@@ -1,6 +1,8 @@
 import { ApiPropertyOptional } from "@nestjs/swagger";
 import {
+  IsDateString,
   IsEmail,
+  IsIn,
   IsOptional,
   IsPhoneNumber,
   IsString,
@@ -33,4 +35,19 @@ export class UpdateProfileDto {
   @IsPhoneNumber("NG")
   phone?: string;
 
+  @ApiPropertyOptional({
+    example: "1995-04-12",
+    description: "Date of birth in ISO 8601 format (YYYY-MM-DD)",
+  })
+  @IsOptional()
+  @IsDateString()
+  dateOfBirth?: string;
+
+  @ApiPropertyOptional({
+    enum: ["MALE", "FEMALE", "OTHER"],
+    example: "MALE",
+  })
+  @IsOptional()
+  @IsIn(["MALE", "FEMALE", "OTHER"])
+  gender?: string;
 }

@@ -102,6 +102,8 @@ model User {
   transactionPinHash String?
   bvnEncrypted       String?
   bvnVerified        Boolean @default(false)
+  dateOfBirth        DateTime?
+  gender             String?
 
   kycStatusId Int
   kycStatus   KycStatus @relation(fields: [kycStatusId], references: [id])
