@@ -16,6 +16,9 @@ import { SetTransactionPinDto } from "./lib/dto/dto.auth.set-transaction-pin";
 import { VerifyDeviceDto } from "./lib/dto/dto.auth.verify-device";
 import { LoginDto } from "./lib/dto/dto.auth.login";
 import { RefreshDto } from "./lib/dto/dto.auth.refresh";
+import { ForgotPasswordDto } from "./lib/dto/dto.auth.forgot-password";
+import { ResetPasswordDto } from "./lib/dto/dto.auth.reset-password";
+import { ChangePasswordDto } from "./lib/dto/dto.auth.change-password";
 import {
   OtpSentResponse,
   OtpVerifiedResponse,
@@ -159,5 +162,51 @@ export class AuthController {
   @ApiBadRequestResponse({ description: "Validation error" })
   resendOtp(@Body() dto: SignupDto) {
     return this.auth.resendOtp(dto);
+  }
+
+  @Public()
+  @Post("forgot-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Request password reset OTP",
+    description:
+      "Sends a 6-digit OTP to the phone number or email associated with the account. " +
+      "Always returns the same success response to prevent account enumeration.",
+  })
+  @ApiResponse({ status: 200, type: OtpSentResponse })
+  @ApiBadRequestResponse({ description: "Validation error" })
+  forgotPassword(@Body() dto: ForgotPasswordDto) {
+    return this.auth.forgotPassword(dto);
+  }
+
+  @Public()
+  @Post("reset-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Reset password with OTP",
+    description:
+      "Verifies the OTP from forgot-password and sets the new password. " +
+      "The user must log in again after resetting.",
+  })
+  @ApiResponse({ status: 200 })
+  @ApiUnauthorizedResponse({ description: "Invalid or expired OTP" })
+  @ApiBadRequestResponse({ description: "Passwords do not match" })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
+  }
+
+  @Post("change-password")
+  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiOperation({
+    summary: "Change password (settings)",
+    description:
+      "Authenticated route. Validates the current password before applying the new one.",
+  })
+  @ApiResponse({ status: 200 })
+  @ApiUnauthorizedResponse({ description: "Current password is incorrect" })
+  @ApiBadRequestResponse({ description: "Passwords do not match or no password set" })
+  changePassword(@CurrentUser() user: User, @Body() dto: ChangePasswordDto) {
+    return this.auth.changePassword(user.id, dto);
   }
 }

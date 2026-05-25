@@ -26,6 +26,9 @@ import {
   ACCOUNT_DEACTIVATED,
   TOKEN_REFRESHED,
   NEW_DEVICE_DETECTED,
+  PASSWORD_RESET_OTP_SENT,
+  PASSWORD_RESET,
+  CHANGE_PASSWORD,
 } from "@common/lib/enums/lib.enum.messages";
 import { ok } from "@common/lib/utils/util.response";
 import { SignupDto } from "./lib/dto/dto.auth.signup";
@@ -35,6 +38,9 @@ import { SetTransactionPinDto } from "./lib/dto/dto.auth.set-transaction-pin";
 import { VerifyDeviceDto } from "./lib/dto/dto.auth.verify-device";
 import { LoginDto } from "./lib/dto/dto.auth.login";
 import { RefreshDto } from "./lib/dto/dto.auth.refresh";
+import { ForgotPasswordDto } from "./lib/dto/dto.auth.forgot-password";
+import { ResetPasswordDto } from "./lib/dto/dto.auth.reset-password";
+import { ChangePasswordDto } from "./lib/dto/dto.auth.change-password";
 import { JwtPayload } from "./strategies/jwt.strategy";
 
 const OTP_TTL_MINUTES = 10;
@@ -61,7 +67,7 @@ export class AuthService {
 
     if (!user.passwordHash) {
       const otp = this.generateOtp();
-      await this.storeOtp(user.id, otp);
+      await this.storeToken(user.id, otp, "OTP");
 
       if (phone) {
         this.notifications.sendPhoneOtp(phone, otp);
@@ -283,6 +289,95 @@ export class AuthService {
     return ok(TOKEN_REFRESHED, tokens);
   }
 
+  // ─── Forgot Password ─────────────────────────────────────────────────────
+
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.resolveByIdentifier(dto.identifier);
+
+    if (user) {
+      await this.invalidateOtps(user.id, "PASSWORD_RESET");
+      const otp = this.generateOtp();
+      await this.storeToken(user.id, otp, "PASSWORD_RESET");
+
+      if (user.email) {
+        this.notifications.sendPasswordResetOtp(user.email, otp);
+        this.logger.log(`forgotPassword: reset OTP sent via email user=${user.id}`);
+      } else if (user.phoneNumber) {
+        this.notifications.sendPhoneOtp(user.phoneNumber, otp);
+        this.logger.log(`forgotPassword: reset OTP sent via SMS user=${user.id}`);
+      }
+    } else {
+      this.logger.warn(`forgotPassword: no account for identifier=${dto.identifier}`);
+    }
+
+    return ok(PASSWORD_RESET_OTP_SENT);
+  }
+
+  // ─── Reset Password ───────────────────────────────────────────────────────
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const user = await this.resolveByIdentifier(dto.identifier);
+
+    const invalid = new UnauthorizedException(INVALID_OTP);
+    if (!user) {
+      this.logger.warn(`resetPassword: user not found identifier=${dto.identifier}`);
+      throw invalid;
+    }
+
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException("Passwords do not match");
+    }
+
+    const typeId = await this.resolveTokenTypeId("PASSWORD_RESET");
+    const token = await this.prisma.token.findFirst({
+      where: {
+        userId: user.id,
+        typeId,
+        used: false,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    if (!token || token.token !== dto.otp) {
+      this.logger.warn(`resetPassword: invalid or expired OTP user=${user.id}`);
+      throw invalid;
+    }
+
+    await this.prisma.token.update({ where: { id: token.id }, data: { used: true } });
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+    await this.users.setPassword(user.id, passwordHash);
+    this.logger.log(`resetPassword: password reset user=${user.id}`);
+
+    return ok(PASSWORD_RESET);
+  }
+
+  // ─── Change Password (authenticated) ─────────────────────────────────────
+
+  async changePassword(userId: string, dto: ChangePasswordDto) {
+    if (dto.password !== dto.confirmPassword) {
+      throw new BadRequestException("Passwords do not match");
+    }
+
+    const user = await this.users.findById(userId);
+    if (!user || !user.passwordHash) {
+      throw new BadRequestException("No password set on this account");
+    }
+
+    const valid = await argon2.verify(user.passwordHash, dto.currentPassword);
+    if (!valid) {
+      this.logger.warn(`changePassword: wrong current password user=${userId}`);
+      throw new UnauthorizedException(INVALID_PASSWORD);
+    }
+
+    const passwordHash = await argon2.hash(dto.password, { type: argon2.argon2id });
+    await this.users.setPassword(userId, passwordHash);
+    this.logger.log(`changePassword: password changed user=${userId}`);
+
+    return ok(CHANGE_PASSWORD);
+  }
+
   // ─── Resend OTP ───────────────────────────────────────────────────────────
 
   async resendOtp(dto: SignupDto) {
@@ -293,7 +388,7 @@ export class AuthService {
     if (user && !user.passwordHash) {
       await this.invalidateOtps(user.id, "OTP");
       const otp = this.generateOtp();
-      await this.storeOtp(user.id, otp);
+      await this.storeToken(user.id, otp, "OTP");
 
       if (user.phoneNumber) {
         await this.notifications.sendPhoneOtp(user.phoneNumber, otp);
@@ -348,11 +443,11 @@ export class AuthService {
     return type.id;
   }
 
-  private async storeOtp(userId: string, otp: string): Promise<void> {
-    const typeId = await this.resolveTokenTypeId("OTP");
+  private async storeToken(userId: string, token: string, typeName: string): Promise<void> {
+    const typeId = await this.resolveTokenTypeId(typeName);
     const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000);
     await this.prisma.token.create({
-      data: { id: generateId("tok"), userId, typeId, token: otp, expiresAt },
+      data: { id: generateId("tok"), userId, typeId, token, expiresAt },
     });
   }
 

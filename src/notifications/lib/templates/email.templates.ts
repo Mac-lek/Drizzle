@@ -41,6 +41,16 @@ export function adminInviteTemplate(data: {
   ].join("");
 }
 
+export function passwordResetTemplate(data: { otp: string }): string {
+  return [
+    p("Hi there,"),
+    p("We received a request to reset your Kolowise password. Use the code below — it is valid for <strong>10 minutes</strong>."),
+    otpBox(data.otp),
+    p("If you did not request a password reset, you can safely ignore this email. Your password will not change."),
+    p("Do not share this code with anyone."),
+  ].join("");
+}
+
 export function waitlistTemplate(data: { firstName: string }): string {
   return [
     p(`Hi ${data.firstName},`),

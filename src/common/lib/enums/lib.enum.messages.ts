@@ -24,6 +24,7 @@ export const INVALID_PASSWORD = "Invalid password";
 export const PASSWORD_RESET_OTP_SENT =
   "If an account exists, a password reset OTP has been sent";
 export const PASSWORD_RESET = "Password reset successfully";
+export const CHANGE_PASSWORD = "Password changed successfully";
 export const SET_TRANSACTION_PIN = "Transaction PIN set successfully";
 export const DEVICE_VERIFIED = "Device verified successfully";
 export const NEW_DEVICE_DETECTED =

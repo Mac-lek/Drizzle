@@ -22,6 +22,10 @@ export class NotificationsService {
     this.send(to, "Your Drizzle Verification Code", buildEmailHtml({ type: "otp", data: { otp } }));
   }
 
+  sendPasswordResetOtp(to: string, otp: string): void {
+    this.send(to, "Reset Your Drizzle Password", buildEmailHtml({ type: "passwordReset", data: { otp } }));
+  }
+
   sendAdminOtp(to: string, otp: string): void {
     this.send(to, "Drizzle Admin — Your Login OTP", buildEmailHtml({ type: "adminOtp", data: { otp } }));
   }
