@@ -14,6 +14,8 @@ import { UpdateProfileDto } from "./lib/dto/dto.users.update-profile";
 import { SubmitBvnDto } from "./lib/dto/dto.users.submit-bvn";
 import { DojahProvider } from "../kyc/providers/provider.dojah";
 import { encryptBvn } from "../kyc/lib/util.bvn-encrypt";
+import { WalletService } from "../wallet/service.wallet";
+import { koboToString } from "@common/lib/utils/util.money";
 
 export interface UserProfile {
   id: string;
@@ -27,6 +29,7 @@ export interface UserProfile {
   kycStatus: string;
   status: string;
   profileComplete: boolean;
+  walletBalanceKobo: string;
   createdAt: Date;
 }
 
@@ -38,6 +41,7 @@ export class UsersService {
     private readonly prisma: PrismaService,
     private readonly dojah: DojahProvider,
     private readonly config: ConfigService,
+    private readonly walletService: WalletService,
   ) {}
 
   findById(id: string): Promise<User | null> {
@@ -93,6 +97,7 @@ export class UsersService {
       include: {
         kycStatus: { select: { name: true } },
         status: { select: { name: true } },
+        wallet: { select: { id: true } },
       },
     });
     if (!user) {
@@ -109,6 +114,11 @@ export class UsersService {
       user.dateOfBirth &&
       user.gender
     );
+
+    const walletBalanceKobo = user.wallet
+      ? koboToString(await this.walletService.getBalance(user.wallet.id))
+      : "0";
+
     this.logger.log(`getProfile: fetched id=${userId} profileComplete=${profileComplete}`);
 
     return {
@@ -123,6 +133,7 @@ export class UsersService {
       kycStatus: user.kycStatus.name,
       status: user.status.name,
       profileComplete,
+      walletBalanceKobo,
       createdAt: user.createdAt,
     };
   }

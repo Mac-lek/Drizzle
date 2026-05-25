@@ -32,6 +32,8 @@ class ProfileData {
   @ApiProperty() status: string;
   @ApiProperty({ description: "true when firstName, lastName, email, phoneNumber, dateOfBirth, gender and bvnVerified are all set" })
   profileComplete: boolean;
+  @ApiProperty({ description: "Wallet balance in Kobo (1 Naira = 100 Kobo)", example: "0" })
+  walletBalanceKobo: string;
   @ApiProperty() createdAt: Date;
 }
 

@@ -7,6 +7,7 @@ import { ConfigService } from "@nestjs/config";
 import { UsersService } from "./service.users";
 import { PrismaService } from "@prisma-client/prisma.service";
 import { DojahProvider } from "../kyc/providers/provider.dojah";
+import { WalletService } from "../wallet/service.wallet";
 
 const TEST_KEY = "a".repeat(64);
 
@@ -57,6 +58,7 @@ describe("UsersService", () => {
         },
         { provide: DojahProvider, useValue: { verifyBvn: jest.fn() } },
         { provide: ConfigService, useValue: { getOrThrow: jest.fn().mockReturnValue(TEST_KEY) } },
+        { provide: WalletService, useValue: { getBalance: jest.fn().mockResolvedValue(BigInt(0)) } },
       ],
     }).compile();
 
@@ -144,15 +146,15 @@ describe("UsersService", () => {
     });
   });
 
-  describe("setPin", () => {
-    it("updates the user pinHash", async () => {
+  describe("setPassword", () => {
+    it("updates the user passwordHash", async () => {
       (prisma.user.update as jest.Mock).mockResolvedValue(mockUser);
 
-      await service.setPin("user-1", "hashed-pin");
+      await service.setPassword("user-1", "hashed-password");
 
       expect(prisma.user.update).toHaveBeenCalledWith({
         where: { id: "user-1" },
-        data: { pinHash: "hashed-pin" },
+        data: { passwordHash: "hashed-password" },
       });
     });
   });
@@ -162,6 +164,7 @@ describe("UsersService", () => {
       ...mockUser,
       kycStatus: { name: "NONE" },
       status: { name: "ACTIVE" },
+      wallet: { id: "wlt-1" },
     };
 
     it("returns profileComplete false when any required field is missing", async () => {
@@ -184,6 +187,8 @@ describe("UsersService", () => {
         email: "ada@example.com",
         phoneNumber: "+2348012345678",
         bvnVerified: true,
+        dateOfBirth: new Date("1995-04-12"),
+        gender: "FEMALE",
       });
 
       const result = await service.getProfile("user-1");
