@@ -18,6 +18,7 @@ import {
 class DisbursementData {
   @ApiProperty() id: string;
   @ApiProperty() vaultId: string;
+  @ApiProperty({ nullable: true }) vaultName: string | null;
   @ApiProperty() dripNumber: number;
   @ApiProperty({ description: "Amount in Kobo", example: "50000" }) amountKobo: string;
   @ApiProperty({ example: "COMPLETED" }) status: string;
@@ -60,6 +61,7 @@ export class DisbursementController {
   private toResponse(d: {
     id: string;
     vaultId: string;
+    vaultName: string | null;
     dripNumber: number;
     amountKobo: bigint;
     status: { name: string };
@@ -71,6 +73,7 @@ export class DisbursementController {
     return {
       id: d.id,
       vaultId: d.vaultId,
+      vaultName: d.vaultName,
       dripNumber: d.dripNumber,
       amountKobo: d.amountKobo.toString(),
       status: d.status.name,

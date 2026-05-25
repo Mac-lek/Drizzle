@@ -46,6 +46,7 @@ export class DisbursementService {
     Array<{
       id: string;
       vaultId: string;
+      vaultName: string | null;
       dripNumber: number;
       amountKobo: bigint;
       status: { name: string };
@@ -55,7 +56,7 @@ export class DisbursementService {
       createdAt: Date;
     }>
   > {
-    return this.prisma.disbursement.findMany({
+    const rows = await this.prisma.disbursement.findMany({
       where: { userId },
       select: {
         id: true,
@@ -63,6 +64,7 @@ export class DisbursementService {
         dripNumber: true,
         amountKobo: true,
         status: { select: { name: true } },
+        vault: { select: { name: true } },
         failReason: true,
         attemptedAt: true,
         completedAt: true,
@@ -70,6 +72,7 @@ export class DisbursementService {
       },
       orderBy: { createdAt: "desc" },
     });
+    return rows.map((r) => ({ ...r, vaultName: r.vault.name }));
   }
 
   async findById(
@@ -78,6 +81,7 @@ export class DisbursementService {
   ): Promise<{
     id: string;
     vaultId: string;
+    vaultName: string | null;
     dripNumber: number;
     amountKobo: bigint;
     status: { name: string };
@@ -94,6 +98,7 @@ export class DisbursementService {
         dripNumber: true,
         amountKobo: true,
         status: { select: { name: true } },
+        vault: { select: { name: true } },
         failReason: true,
         attemptedAt: true,
         completedAt: true,
@@ -105,7 +110,7 @@ export class DisbursementService {
       throw new NotFoundException(`Disbursement ${id} not found`);
     }
 
-    return disbursement;
+    return { ...disbursement, vaultName: disbursement.vault.name };
   }
 
   async processDrip(vaultId: string): Promise<void> {
