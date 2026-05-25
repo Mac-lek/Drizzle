@@ -105,21 +105,11 @@ export class UsersService {
       throw new NotFoundException("User not found");
     }
 
-    const profileComplete = !!(
-      user.firstName &&
-      user.lastName &&
-      user.email &&
-      user.phoneNumber &&
-      user.bvnVerified &&
-      user.dateOfBirth &&
-      user.gender
-    );
-
     const walletBalanceKobo = user.wallet
       ? koboToString(await this.walletService.getBalance(user.wallet.id))
       : "0";
 
-    this.logger.log(`getProfile: fetched id=${userId} profileComplete=${profileComplete}`);
+    this.logger.log(`getProfile: fetched id=${userId} profileComplete=${user.profileComplete}`);
 
     return {
       id: user.id,
@@ -132,7 +122,7 @@ export class UsersService {
       bvnVerified: user.bvnVerified,
       kycStatus: user.kycStatus.name,
       status: user.status.name,
-      profileComplete,
+      profileComplete: user.profileComplete,
       walletBalanceKobo,
       createdAt: user.createdAt,
     };
@@ -162,6 +152,7 @@ export class UsersService {
         ...(dto.gender !== undefined && { gender: dto.gender }),
       },
     });
+    await this.syncProfileComplete(userId, updated);
     this.logger.log(`updateProfile: updated user=${userId}`);
     return updated;
   }
@@ -197,11 +188,29 @@ export class UsersService {
     }
 
     const bvnEncrypted = encryptBvn(dto.bvn, encryptionKey);
-    await this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id: userId },
       data: { bvnEncrypted, bvnVerified: true },
     });
+    await this.syncProfileComplete(userId, updated);
     this.logger.log(`submitBvn: verified and saved user=${userId}`);
+  }
+
+  private async syncProfileComplete(userId: string, user: User): Promise<void> {
+    const isComplete = !!(
+      user.firstName &&
+      user.lastName &&
+      user.email &&
+      user.phoneNumber &&
+      user.bvnVerified &&
+      user.dateOfBirth &&
+      user.gender
+    );
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { profileComplete: isComplete },
+    });
+    this.logger.log(`syncProfileComplete: user=${userId} profileComplete=${isComplete}`);
   }
 
   private nameMatches(profileName: string, dojahName: string): boolean {

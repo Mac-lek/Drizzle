@@ -104,6 +104,7 @@ model User {
   bvnVerified        Boolean @default(false)
   dateOfBirth        DateTime?
   gender             String?
+  profileComplete    Boolean @default(false)
 
   kycStatusId Int
   kycStatus   KycStatus @relation(fields: [kycStatusId], references: [id])
