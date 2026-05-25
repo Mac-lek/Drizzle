@@ -63,6 +63,7 @@ export class AuthService {
   async signup(dto: SignupDto) {
     const phone = dto.phone ? normalizeNigerianPhone(dto.phone) : undefined;
     const { user, created } = await this.users.findOrCreate(phone, dto.email);
+    const isProduction = this.config.get<string>("NODE_ENV") === "production";
     this.logger.log(`signup: user=${user.id} created=${created}`);
 
     if (!user.passwordHash) {
@@ -77,11 +78,11 @@ export class AuthService {
         this.logger.log(`signup: OTP sent via email user=${user.id}`);
       }
 
-      return ok(VERIFICATION_OTP_SENT, { otp });
+      return ok(VERIFICATION_OTP_SENT, { ...(!isProduction && { otp }) });
     }
 
     this.logger.log(`signup: already registered, skipping OTP user=${user.id}`);
-    return ok(VERIFICATION_OTP_SENT);
+    return ok(VERIFICATION_OTP_SENT, {});
   }
 
   // ─── Verify OTP ───────────────────────────────────────────────────────────
@@ -384,6 +385,7 @@ export class AuthService {
     const user = dto.phone
       ? await this.users.findByPhone(normalizeNigerianPhone(dto.phone))
       : await this.users.findByEmail(dto.email!.toLowerCase());
+    const isProduction = this.config.get<string>("NODE_ENV") === "production";
 
     if (user && !user.passwordHash) {
       await this.invalidateOtps(user.id, "OTP");
@@ -398,11 +400,11 @@ export class AuthService {
         this.logger.log(`resendOtp: OTP resent via email user=${user.id}`);
       }
 
-      return ok(VERIFICATION_OTP_RESENT, { otp });
+      return ok(VERIFICATION_OTP_RESENT, { ...(!isProduction && { otp }) });
     }
 
     this.logger.log(`resendOtp: no-op (user not found or already registered)`);
-    return ok(VERIFICATION_OTP_RESENT);
+    return ok(VERIFICATION_OTP_RESENT, {});
   }
 
   // ─── Private helpers ──────────────────────────────────────────────────────
