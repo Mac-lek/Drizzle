@@ -16,16 +16,17 @@ import {
 } from "@common/lib/enums/lib.enum.messages";
 
 class DisbursementData {
-  @ApiProperty() id: string;
+  @ApiProperty() id: string | null;
   @ApiProperty() vaultId: string;
   @ApiProperty({ nullable: true }) vaultName: string | null;
   @ApiProperty() dripNumber: number;
   @ApiProperty({ description: "Amount in Kobo", example: "50000" }) amountKobo: string;
+  @ApiProperty({ description: "Computed date this drip is/was scheduled for" }) scheduledAt: Date;
   @ApiProperty({ example: "COMPLETED" }) status: string;
   @ApiProperty({ nullable: true }) failReason: string | null;
   @ApiProperty({ nullable: true }) attemptedAt: Date | null;
   @ApiProperty({ nullable: true }) completedAt: Date | null;
-  @ApiProperty() createdAt: Date;
+  @ApiProperty({ nullable: true }) createdAt: Date | null;
 }
 
 class DisbursementApiResponse {
@@ -48,7 +49,7 @@ export class DisbursementController {
   @ApiOperation({ summary: "List my disbursements" })
   @ApiResponse({ status: 200, type: DisbursementListApiResponse })
   async listMine(@CurrentUser() user: User) {
-    return ok(DISBURSEMENTS_FETCHED, (await this.disbursements.findByUser(user.id)).map(this.toResponse));
+    return ok(DISBURSEMENTS_FETCHED, (await this.disbursements.findByUser(user.id)).map((d) => this.toResponse(d)));
   }
 
   @Get(":id")
@@ -64,6 +65,7 @@ export class DisbursementController {
     vaultName: string | null;
     dripNumber: number;
     amountKobo: bigint;
+    scheduledAt: Date;
     status: { name: string };
     failReason: string | null;
     attemptedAt: Date | null;
@@ -76,6 +78,7 @@ export class DisbursementController {
       vaultName: d.vaultName,
       dripNumber: d.dripNumber,
       amountKobo: d.amountKobo.toString(),
+      scheduledAt: d.scheduledAt,
       status: d.status.name,
       failReason: d.failReason,
       attemptedAt: d.attemptedAt,
@@ -83,4 +86,5 @@ export class DisbursementController {
       createdAt: d.createdAt,
     };
   }
+
 }

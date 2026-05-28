@@ -49,6 +49,7 @@ export class DisbursementService {
       vaultName: string | null;
       dripNumber: number;
       amountKobo: bigint;
+      scheduledAt: Date;
       status: { name: string };
       failReason: string | null;
       attemptedAt: Date | null;
@@ -64,7 +65,7 @@ export class DisbursementService {
         dripNumber: true,
         amountKobo: true,
         status: { select: { name: true } },
-        vault: { select: { name: true } },
+        vault: { select: { name: true, startsAt: true, frequency: { select: { name: true } } } },
         failReason: true,
         attemptedAt: true,
         completedAt: true,
@@ -72,7 +73,11 @@ export class DisbursementService {
       },
       orderBy: { createdAt: "desc" },
     });
-    return rows.map((r) => ({ ...r, vaultName: r.vault.name }));
+    return rows.map((r) => ({
+      ...r,
+      vaultName: r.vault.name,
+      scheduledAt: this.computeNextDripAt(r.vault.startsAt, r.dripNumber - 1, r.vault.frequency.name),
+    }));
   }
 
   async findById(
@@ -84,6 +89,7 @@ export class DisbursementService {
     vaultName: string | null;
     dripNumber: number;
     amountKobo: bigint;
+    scheduledAt: Date;
     status: { name: string };
     failReason: string | null;
     attemptedAt: Date | null;
@@ -98,7 +104,7 @@ export class DisbursementService {
         dripNumber: true,
         amountKobo: true,
         status: { select: { name: true } },
-        vault: { select: { name: true } },
+        vault: { select: { name: true, startsAt: true, frequency: { select: { name: true } } } },
         failReason: true,
         attemptedAt: true,
         completedAt: true,
@@ -110,7 +116,11 @@ export class DisbursementService {
       throw new NotFoundException(`Disbursement ${id} not found`);
     }
 
-    return { ...disbursement, vaultName: disbursement.vault.name };
+    return {
+      ...disbursement,
+      vaultName: disbursement.vault.name,
+      scheduledAt: this.computeNextDripAt(disbursement.vault.startsAt, disbursement.dripNumber - 1, disbursement.vault.frequency.name),
+    };
   }
 
   async processDrip(vaultId: string): Promise<void> {

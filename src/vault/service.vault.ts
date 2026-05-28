@@ -14,14 +14,31 @@ import { CreateVaultDto } from "./lib/dto/dto.vault.create";
 const BREAK_PENALTY_RATE = 0.1;
 const PLATFORM_ACCOUNT_ID = "drizzle_platform";
 
-const vaultInclude = {
+const vaultListInclude = {
   frequency: { select: { name: true } },
   status: { select: { name: true } },
 } satisfies Prisma.VaultInclude;
 
-export type VaultWithRelations = Prisma.VaultGetPayload<{
-  include: typeof vaultInclude;
-}>;
+const vaultDetailInclude = {
+  frequency: { select: { name: true } },
+  status: { select: { name: true } },
+  disbursements: {
+    select: {
+      id: true,
+      dripNumber: true,
+      amountKobo: true,
+      status: { select: { name: true } },
+      failReason: true,
+      attemptedAt: true,
+      completedAt: true,
+      createdAt: true,
+    },
+    orderBy: { dripNumber: "asc" as const },
+  },
+} satisfies Prisma.VaultInclude;
+
+export type VaultListItem = Prisma.VaultGetPayload<{ include: typeof vaultListInclude }>;
+export type VaultDetail = Prisma.VaultGetPayload<{ include: typeof vaultDetailInclude }>;
 
 @Injectable()
 export class VaultService {
@@ -35,7 +52,7 @@ export class VaultService {
   async create(
     userId: string,
     dto: CreateVaultDto,
-  ): Promise<VaultWithRelations> {
+  ): Promise<VaultListItem> {
     const lockedAmountKobo = BigInt(dto.lockedAmountKobo);
     const totalTranches = dto.totalTranches;
 
@@ -142,14 +159,14 @@ export class VaultService {
     this.logger.log(`create: vault=${vaultId} user=${userId} amountKobo=${lockedAmountKobo} tranches=${totalTranches}`);
     return this.prisma.vault.findUniqueOrThrow({
       where: { id: vaultId },
-      include: vaultInclude,
+      include: vaultListInclude,
     });
   }
 
-  async findById(id: string, userId: string): Promise<VaultWithRelations> {
+  async findById(id: string, userId: string): Promise<VaultDetail> {
     const vault = await this.prisma.vault.findUnique({
       where: { id },
-      include: vaultInclude,
+      include: vaultDetailInclude,
     });
     if (!vault) {
       this.logger.warn(`findById: vault not found id=${id}`);
@@ -162,10 +179,10 @@ export class VaultService {
     return vault;
   }
 
-  async findByUser(userId: string): Promise<VaultWithRelations[]> {
+  async findByUser(userId: string): Promise<VaultListItem[]> {
     return this.prisma.vault.findMany({
       where: { userId },
-      include: vaultInclude,
+      include: vaultListInclude,
       orderBy: { createdAt: "desc" },
     });
   }
@@ -173,7 +190,7 @@ export class VaultService {
   async breakVault(
     userId: string,
     vaultId: string,
-  ): Promise<VaultWithRelations> {
+  ): Promise<VaultListItem> {
     const vault = await this.findById(vaultId, userId);
 
     if (vault.status.name !== "ACTIVE") {
@@ -256,7 +273,7 @@ export class VaultService {
     this.logger.log(`breakVault: vault=${vaultId} user=${userId} returnKobo=${returnKobo} penaltyKobo=${penaltyKobo}`);
     return this.prisma.vault.findUniqueOrThrow({
       where: { id: vaultId },
-      include: vaultInclude,
+      include: vaultListInclude,
     });
   }
 

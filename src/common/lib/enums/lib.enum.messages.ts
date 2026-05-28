@@ -67,6 +67,7 @@ export const DRIP_PROCESSED = "Drip processed successfully";
 export const DRIP_ALREADY_PROCESSED = "This drip has already been processed";
 export const DISBURSEMENTS_FETCHED = "Disbursements fetched successfully";
 export const DISBURSEMENT_FETCHED = "Disbursement fetched successfully";
+export const VAULT_DISBURSEMENTS_FETCHED = "Vault disbursement schedule fetched successfully";
 
 // ─── Users ────────────────────────────────────────────────────────────────────
 export const PROFILE_FETCHED = "Profile fetched successfully";
